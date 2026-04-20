@@ -1,1 +1,373 @@
 
+
+<script>
+
+const STORAGE_KEY = "expense_tracker_v3";
+
+let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+const RULES = [
+
+  { match: "nezar mansy", reimb: true, category: "Client reimbursed" },
+
+  { match: "capitol hill club", reimb: true, category: "Client reimbursed" },
+
+  { match: "116 club", reimb: true, category: "Client reimbursed" },
+
+  { match: "national democratic club", reimb: true, category: "Client reimbursed" }
+
+];
+
+function save() {
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+
+}
+
+function importCSV() {
+
+  document.getElementById("fileInput").click();
+
+}
+
+function handleFile(e) {
+
+  const file = e.target.files[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(evt) {
+
+    try {
+
+      parseCSV(evt.target.result);
+
+    } catch (err) {
+
+      alert("This file format was not recognized.");
+
+      console.error(err);
+
+    }
+
+  };
+
+  reader.readAsText(file);
+
+}
+
+function splitCSVLine(line) {
+
+  const result = [];
+
+  let current = "";
+
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+
+    const ch = line[i];
+
+    const next = line[i + 1];
+
+    if (ch === '"') {
+
+      if (inQuotes && next === '"') {
+
+        current += '"';
+
+        i++;
+
+      } else {
+
+        inQuotes = !inQuotes;
+
+      }
+
+    } else if (ch === "," && !inQuotes) {
+
+      result.push(current.trim());
+
+      current = "";
+
+    } else {
+
+      current += ch;
+
+    }
+
+  }
+
+  result.push(current.trim());
+
+  return result;
+
+}
+
+function cleanValue(v) {
+
+  if (v == null) return "";
+
+  return String(v).replace(/^"|"$/g, "").trim();
+
+}
+
+function parseMoney(v) {
+
+  if (v == null) return NaN;
+
+  let s = String(v).trim();
+
+  if (!s) return NaN;
+
+  s = s.replace(/\$/g, "").replace(/,/g, "").trim();
+
+  if (s.startsWith("(") && s.endsWith(")")) {
+
+    s = "-" + s.slice(1, -1);
+
+  }
+
+  return parseFloat(s);
+
+}
+
+function findHeaderIndex(headers, names) {
+
+  const lowered = headers.map(h => cleanValue(h).toLowerCase());
+
+  for (const name of names) {
+
+    const idx = lowered.indexOf(name);
+
+    if (idx !== -1) return idx;
+
+  }
+
+  return -1;
+
+}
+
+function detectAccountFromFileName(name) {
+
+  const n = (name || "").toLowerCase();
+
+  if (n.includes("apple")) return "Apple Card";
+
+  if (n.includes("amex") || n.includes("american express")) return "AmEx";
+
+  if (n.includes("burke") || n.includes("herbert") || n.includes("checking")) return "Burke & Herbert";
+
+  return "Bank";
+
+}
+
+function parseCSV(text) {
+
+  const rawLines = text.replace(/\r/g, "").split("\n").filter(line => line.trim() !== "");
+
+  if (rawLines.length < 2) {
+
+    alert("The file appears empty.");
+
+    return;
+
+  }
+
+  const rows = rawLines.map(splitCSVLine);
+
+  const headers = rows[0].map(cleanValue);
+
+  const dateIdx = findHeaderIndex(headers, ["date", "transaction date", "posted date"]);
+
+  const descIdx = findHeaderIndex(headers, ["description", "details", "merchant", "name", "memo"]);
+
+  const amountIdx = findHeaderIndex(headers, ["amount", "transaction amount"]);
+
+  const debitIdx = findHeaderIndex(headers, ["debit", "withdrawal"]);
+
+  const creditIdx = findHeaderIndex(headers, ["credit", "deposit"]);
+
+  if (dateIdx === -1 || descIdx === -1 || (amountIdx === -1 && debitIdx === -1 && creditIdx === -1)) {
+
+    alert("File format not recognized by importer.");
+
+    return;
+
+  }
+
+  let imported = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+
+    const cols = rows[i].map(cleanValue);
+
+    if (!cols.length) continue;
+
+    const date = cols[dateIdx] || "";
+
+    const descRaw = cols[descIdx] || "";
+
+    const desc = descRaw.toLowerCase();
+
+    let amount = NaN;
+
+    if (amountIdx !== -1) {
+
+      amount = parseMoney(cols[amountIdx]);
+
+    } else {
+
+      const debit = debitIdx !== -1 ? parseMoney(cols[debitIdx]) : NaN;
+
+      const credit = creditIdx !== -1 ? parseMoney(cols[creditIdx]) : NaN;
+
+      if (!isNaN(debit) && debit !== 0) amount = -Math.abs(debit);
+
+      else if (!isNaN(credit) && credit !== 0) amount = Math.abs(credit);
+
+    }
+
+    if (!date || !descRaw || isNaN(amount)) continue;
+
+    let account = "Bank";
+
+    if (desc.includes("apple")) account = "Apple Card";
+
+    else if (desc.includes("amex") || desc.includes("american express")) account = "AmEx";
+
+    let reimb = false;
+
+    let category = "General";
+
+    for (const rule of RULES) {
+
+      if (desc.includes(rule.match)) {
+
+        reimb = rule.reimb;
+
+        category = rule.category;
+
+        break;
+
+      }
+
+    }
+
+    transactions.push({
+
+      date,
+
+      desc: descRaw,
+
+      account,
+
+      amount,
+
+      reimb,
+
+      category
+
+    });
+
+    imported++;
+
+  }
+
+  save();
+
+  render();
+
+  if (imported === 0) {
+
+    alert("No transactions were imported from this file.");
+
+  } else {
+
+    alert(imported + " transactions imported.");
+
+  }
+
+}
+
+function render() {
+
+  const tbody = document.querySelector("#table tbody");
+
+  tbody.innerHTML = "";
+
+  let total = 0;
+
+  let reimb = 0;
+
+  transactions.forEach(t => {
+
+    if (t.amount < 0) {
+
+      total += Math.abs(t.amount);
+
+      if (t.reimb) reimb += Math.abs(t.amount);
+
+    }
+
+    const row = `<tr>
+
+      <td>${t.date}</td>
+
+      <td>${t.desc}</td>
+
+      <td>${t.account}</td>
+
+      <td>${t.category}</td>
+
+      <td>${t.reimb ? "Yes" : ""}</td>
+
+      <td>${t.amount.toFixed(2)}</td>
+
+    </tr>`;
+
+    tbody.innerHTML += row;
+
+  });
+
+  document.getElementById("total").textContent = total.toFixed(2);
+
+  document.getElementById("reimb").textContent = reimb.toFixed(2);
+
+  document.getElementById("net").textContent = (total - reimb).toFixed(2);
+
+}
+
+function exportData() {
+
+  const blob = new Blob([JSON.stringify(transactions, null, 2)], { type: "application/json" });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+
+  a.href = url;
+
+  a.download = "expenses.json";
+
+  a.click();
+
+}
+
+function clearAll() {
+
+  if (!confirm("Clear all data?")) return;
+
+  transactions = [];
+
+  save();
+
+  render();
+
+}
+
+render();
+
+</script>
