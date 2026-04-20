@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Expense Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 20px;
+      background: #f5f5f7;
+      color: #111;
+    }
+    h1 { margin-bottom: 8px; }
+    p.note { margin-top: 0; color: #555; }
+    button {
+      padding: 10px 14px;
+      margin: 6px 6px 12px 0;
+      border-radius: 8px;
+      border: none;
+      background: #007aff;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary { background: #666; }
+    button.danger { background: #c62828; }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin: 12px 0 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    .toolbar { margin-bottom: 10px; }
+    .status {
+      background: #fff8e1;
+      border: 1px solid #f0d98a;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      display: none;
+      white-space: pre-wrap;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #e6e6e6;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #fafafa; }
+    tr:last-child td { border-bottom: none; }
+  </style>
+</head>
+<body>
+  <h1>Expense Tracker</h1>
+  <p class="note">Imports Burke &amp; Herbert, AmEx, and Apple Card transaction files.</p>
+
+  <div class="toolbar">
+    <button onclick="importCSV()">Import CSV</button>
+    <button class="secondary" onclick="exportData()">Export data</button>
+    <button class="danger" onclick="clearAll()">Clear all</button>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div class="summary">
+    <div class="card">
+      <div class="label">Total spending</div>
+      <div class="value" id="total">$0.00</div>
+    </div>
+    <div class="card">
+      <div class="label">Reimbursable</div>
+      <div class="value" id="reimb">$0.00</div>
+    </div>
+    <div class="card">
+      <div class="label">Net personal</div>
+      <div class="value" id="net">$0.00</div>
+    </div>
+    <div class="card">
+      <div class="label">Transactions</div>
+      <div class="value" id="count">0</div>
+    </div>
+  </div>
+
+  <table id="table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Account</th>
+        <th>Category</th>
+        <th>Reimb.</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <input type="file" id="fileInput" accept=".csv,.txt,.tsv" style="display:none" onchange="handleFile(event)">
+
+<script>
+const STORAGE_KEY = "expense_tracker_v6";
+
+let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+const RULES = [
+  { match: "nezar mansy", reimb: true, category: "Client reimbursed" },
+  { match: "capitol hill club", reimb: true, category: "Client reimbursed" },
+  { match: "116 club", reimb: true, category: "Client reimbursed" },
+  { match: "national democratic club", reimb: true, category: "Client reimbursed" }
+];
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+}
+
+function showStatus(message) {
+  const box = document.getElementById("status");
+  if (!message) {
+    box.style.display = "none";
+    box.textContent = "";
+    return;
+  }
+  box.style.display = "block";
+  box.textContent = message;
+}
+
+function importCSV() {
+  document.getElementById("fileInput").click();
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      parseDelimitedFile(String(evt.target.result || ""), file.name || "");
+    } catch (err) {
+      console.error(err);
+      showStatus("Import failed.\n\n" + err.message);
+    }
+    e.target.value = "";
+  };
+  reader.onerror = function() {
+    showStatus("Could not read the selected file.");
+  };
+  reader.readAsText(file);
+}
+
+function splitLine(line, delimiter) {
+  const out = [];
+  let cur = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    const next = line[i + 1];
+
+    if (ch === '"') {
+      if (inQuotes && next === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === delimiter && !inQuotes) {
+      out.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+
+  out.push(cur);
+  return out;
+}
+
+function clean(v) {
+  return String(v == null ? "" : v).replace(/^"|"$/g, "").trim();
+}
+
+function parseMoney(v) {
+  let s = clean(v);
+  if (!s) return NaN;
+  s = s.replace(/\$/g, "").replace(/,/g, "").trim();
+  if (s.startsWith("(") && s.endsWith(")")) {
+    s = "-" + s.slice(1, -1);
+  }
+  return parseFloat(s);
+}
+
+function findHeader(headers, names) {
+  const lowered = headers.map(h => clean(h).toLowerCase());
+  for (const name of names) {
+    const i = lowered.indexOf(name);
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function detectDelimiter(lines) {
+  const sample = lines.slice(0, 5).join("\n");
+  const commas = (sample.match(/,/g) || []).length;
+  const tabs = (sample.match(/\t/g) || []).length;
+  return tabs > commas ? "\t" : ",";
+}
+
+function detectAccount(fileName, headers) {
+  const f = (fileName || "").toLowerCase();
+  const h = headers.join(" ").toLowerCase();
+
+  if (f.includes("apple") || h.includes("apple card")) return "Apple Card";
+  if (f.includes("amex") || f.includes("american express") || h.includes("american express")) return "AmEx";
+  if (
+    f.includes("burke") || f.includes("herbert") || f.includes("checking") ||
+    h.includes("processed date") || h.includes("credit or debit")
+  ) return "Burke & Herbert";
+
+  return "Unknown";
+}
+
+function parseDelimitedFile(text, fileName) {
+  const lines = text.replace(/\r/g, "").split("\n").filter(line => line.trim() !== "");
+  if (lines.length < 2) {
+    throw new Error("The file appears empty.");
+  }
+
+  const delimiter = detectDelimiter(lines);
+  const rows = lines.map(line => splitLine(line, delimiter).map(clean));
+  const headers = rows[0];
+  const loweredHeaders = headers.map(h => h.toLowerCase());
+
+  const dateIdx = findHeader(headers, [
+    "date", "transaction date", "posted date", "post date", "processed date"
+  ]);
+
+  const descIdx = findHeader(headers, [
+    "description", "details", "merchant", "name", "memo", "transaction description"
+  ]);
+
+  const amountIdx = findHeader(headers, [
+    "amount", "transaction amount"
+  ]);
+
+  const debitIdx = findHeader(headers, [
+    "debit", "withdrawal", "withdrawals"
+  ]);
+
+  const creditIdx = findHeader(headers, [
+    "credit", "deposit", "deposits"
+  ]);
+
+  const creditOrDebitIdx = findHeader(headers, [
+    "credit or debit"
+  ]);
+
+  const accountNameIdx = findHeader(headers, [
+    "account name"
+  ]);
+
+  const account = detectAccount(fileName, headers);
+
+  if (dateIdx === -1 || descIdx === -1 || amountIdx === -1) {
+    throw new Error(
+      "Unknown CSV format.\n\nFilename: " + fileName +
+      "\nHeaders found: " + headers.join(" | ")
+    );
+  }
+
+  let imported = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i];
+    const date = cols[dateIdx] || "";
+    const description = cols[descIdx] || "";
+    if (!date || !description) continue;
+
+    let amount = parseMoney(cols[amountIdx]);
+    if (isNaN(amount)) continue;
+
+    if (creditOrDebitIdx !== -1) {
+      const kind = (cols[creditOrDebitIdx] || "").toLowerCase();
+      if (kind.includes("debit")) amount = -Math.abs(amount);
+      else if (kind.includes("credit")) amount = Math.abs(amount);
+    } else {
+      const debit = debitIdx !== -1 ? parseMoney(cols[debitIdx]) : NaN;
+      const credit = creditIdx !== -1 ? parseMoney(cols[creditIdx]) : NaN;
+      if (!isNaN(debit) && debit !== 0) amount = -Math.abs(debit);
+      else if (!isNaN(credit) && credit !== 0) amount = Math.abs(credit);
+    }
+
+    const lower = description.toLowerCase();
+    let reimb = false;
+    let category = "General";
+
+    for (const rule of RULES) {
+      if (lower.includes(rule.match)) {
+        reimb = true;
+        category = rule.category;
+        break;
+      }
+    }
+
+    transactions.push({
+      date,
+      desc: description,
+      account: account === "Unknown" && accountNameIdx !== -1 ? (cols[accountNameIdx] || "Bank") : account,
+      amount,
+      reimb,
+      category
+    });
+
+    imported++;
+  }
+
+  save();
+  render();
+
+  showStatus(imported + " new transactions imported from " + fileName + ".");
+}
+
+function moneyDisplay(n) {
+  return "$" + Number(n || 0).toFixed(2);
+}
+
+function escapeHtml(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function render() {
+  const tbody = document.querySelector("#table tbody");
+  tbody.innerHTML = "";
+
+  let total = 0;
+  let reimb = 0;
+
+  transactions.forEach(t => {
+    if (t.amount < 0) {
+      total += Math.abs(t.amount);
+      if (t.reimb) reimb += Math.abs(t.amount);
+    }
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(t.date)}</td>
+      <td>${escapeHtml(t.desc)}</td>
+      <td>${escapeHtml(t.account)}</td>
+      <td>${escapeHtml(t.category)}</td>
+      <td>${t.reimb ? "Yes" : ""}</td>
+      <td>${Number(t.amount).toFixed(2)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById("total").textContent = moneyDisplay(total);
+  document.getElementById("reimb").textContent = moneyDisplay(reimb);
+  document.getElementById("net").textContent = moneyDisplay(total - reimb);
+  document.getElementById("count").textContent = String(transactions.length);
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(transactions, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "expenses.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearAll() {
+  if (!confirm("Clear all data?")) return;
+  transactions = [];
+  save();
+  render();
+  showStatus("All imported transactions cleared.");
+}
+
+render();
+showStatus("Tracker loaded: Burke parser v6");
+</script>
+</body>
+</html>
