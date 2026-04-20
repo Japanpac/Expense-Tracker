@@ -1,1 +1,223 @@
+<script>
 
+const STORAGE_KEY = "expense_tracker_v8";
+
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+const RULES = [
+
+  { m: "nezar mansy", r: 1, c: "Client reimbursed" },
+
+  { m: "capitol hill club", r: 1, c: "Client reimbursed" },
+
+  { m: "116 club", r: 1, c: "Client reimbursed" },
+
+  { m: "national democratic club", r: 1, c: "Client reimbursed" }
+
+];
+
+function save() {
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+}
+
+function importCSV() {
+
+  document.getElementById("fileInput").click();
+
+}
+
+function handleFile(e) {
+
+  const f = e.target.files[0];
+
+  if (!f) return;
+
+  const r = new FileReader();
+
+  r.onload = x => parse(x.target.result);
+
+  r.readAsText(f);
+
+}
+
+function parse(t) {
+
+  let lines = t.replace(/\r/g, "").split("\n").filter(l => l.trim());
+
+  if (lines.length < 2) {
+
+    alert("File is empty");
+
+    return;
+
+  }
+
+  let rows = lines.map(l =>
+
+    l.split("\t").map(x => String(x).trim().replace(/^\uFEFF/, ""))
+
+  );
+
+  let h = rows[0].map(x => x.toLowerCase().trim());
+
+  let d = -1, desc = -1, type = -1, amt = -1;
+
+  for (let i = 0; i < h.length; i++) {
+
+    if (h[i].includes("processed date")) d = i;
+
+    if (h[i].includes("description")) desc = i;
+
+    if (h[i].includes("credit or debit")) type = i;
+
+    if (h[i].includes("amount")) amt = i;
+
+  }
+
+  if (d === -1 || desc === -1 || type === -1 || amt === -1) {
+
+    alert("Wrong file: " + h.join(" | "));
+
+    return;
+
+  }
+
+  let imported = 0;
+
+  rows.slice(1).forEach(r => {
+
+    let date = (r[d] || "").trim();
+
+    let de = (r[desc] || "").trim();
+
+    let ty = (r[type] || "").toLowerCase().trim();
+
+    let a = parseFloat((r[amt] || "").replace(/,/g, "").replace(/\$/g, "").trim());
+
+    if (!date || !de || isNaN(a)) return;
+
+    if (ty.includes("debit")) a = -Math.abs(a);
+
+    if (ty.includes("credit")) a = Math.abs(a);
+
+    let reimb = 0;
+
+    let category = "General";
+
+    RULES.forEach(x => {
+
+      if (de.toLowerCase().includes(x.m)) {
+
+        reimb = 1;
+
+        category = x.c;
+
+      }
+
+    });
+
+    data.push({
+
+      date: date,
+
+      desc: de,
+
+      account: "Burke & Herbert",
+
+      category: category,
+
+      amount: a,
+
+      reimb: reimb
+
+    });
+
+    imported++;
+
+  });
+
+  save();
+
+  render();
+
+  alert(imported + " transactions imported");
+
+}
+
+function render() {
+
+  let t = 0, r = 0, out = "";
+
+  data.forEach(x => {
+
+    if (x.amount < 0) {
+
+      t += Math.abs(x.amount);
+
+      if (x.reimb) r += Math.abs(x.amount);
+
+    }
+
+    out += `<tr>
+
+<td>${x.date}</td>
+
+<td>${x.desc}</td>
+
+<td>${x.account || "Burke & Herbert"}</td>
+
+<td>${x.category || "General"}</td>
+
+<td>${x.reimb ? "Yes" : ""}</td>
+
+<td>${Number(x.amount).toFixed(2)}</td>
+
+</tr>`;
+
+  });
+
+  document.getElementById("rows").innerHTML = out;
+
+  document.getElementById("total").innerText = t.toFixed(2);
+
+  document.getElementById("reimb").innerText = r.toFixed(2);
+
+  document.getElementById("net").innerText = (t - r).toFixed(2);
+
+}
+
+function clearAll() {
+
+  if (confirm("Clear all?")) {
+
+    data = [];
+
+    save();
+
+    render();
+
+  }
+
+}
+
+function exportData() {
+
+  let blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+
+  let url = URL.createObjectURL(blob);
+
+  let a = document.createElement("a");
+
+  a.href = url;
+
+  a.download = "expenses.json";
+
+  a.click();
+
+}
+
+render();
+
+</script>
