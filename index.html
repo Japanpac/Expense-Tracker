@@ -1,750 +1,371 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Aletheia Spend Control</title>
-<meta name="theme-color" content="#0f172a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Aletheia Spend">
-<meta name="application-name" content="Aletheia Spend">
-<meta name="description" content="Hosted, installable spend analysis app for Apple Card, American Express, and Burke & Herbert CSV imports.">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png">
-<style>
-:root {
-  --bg:#f5f7fb; --card:#ffffff; --text:#0f172a; --muted:#475569; --line:#dbe3ef;
-  --accent:#1d4ed8; --good:#166534; --warn:#92400e; --bad:#991b1b;
-}
-* { box-sizing:border-box; }
-body { margin:0; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); }
-header { position:sticky; top:0; z-index:3; background:rgba(245,247,251,.94); backdrop-filter: blur(12px); border-bottom:1px solid var(--line); }
-.wrap { max-width:1180px; margin:0 auto; padding:16px; }
-.topbar { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-h1 { font-size:1.35rem; margin:0; }
-.subtitle { color:var(--muted); font-size:.92rem; margin-top:2px; }
-.tabs { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
-.tabbtn { border:1px solid var(--line); background:#fff; color:var(--text); border-radius:999px; padding:10px 14px; font-weight:600; }
-.tabbtn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-main .wrap { padding-top:20px; }
-.panel { display:none; }
-.panel.active { display:block; }
-.grid { display:grid; gap:14px; }
-.kpis { grid-template-columns:repeat(4,minmax(0,1fr)); }
-.card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:0 1px 2px rgba(15,23,42,.03); }
-.card h3 { margin:0 0 10px 0; font-size:1rem; }
-.big { font-size:1.75rem; font-weight:700; letter-spacing:-.02em; }
-.note { color:var(--muted); font-size:.88rem; line-height:1.35; }
-.flex { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-label { font-size:.9rem; color:var(--muted); display:block; margin-bottom:6px; }
-input, select, button, textarea { font:inherit; }
-input[type="month"], input[type="text"], input[type="number"], select, textarea {
-  width:100%; border:1px solid var(--line); border-radius:12px; padding:11px 12px; background:#fff;
-}
-button.primary { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:12px; padding:11px 14px; font-weight:700; }
-button.secondary, .filebtn {
-  background:#fff; color:var(--text); border:1px solid var(--line); border-radius:12px; padding:11px 14px; font-weight:600;
-}
-.smallbtn { padding:8px 10px; border-radius:10px; border:1px solid var(--line); background:#fff; }
-table { width:100%; border-collapse:collapse; }
-th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-th { color:var(--muted); font-size:.82rem; font-weight:700; }
-td { font-size:.92rem; }
-.amount { text-align:right; font-variant-numeric:tabular-nums; }
-.badge { display:inline-block; padding:4px 8px; border-radius:999px; font-size:.76rem; font-weight:700; }
-.core { background:#dbeafe; color:#1e40af; }
-.disc { background:#fef3c7; color:#92400e; }
-.reimb { background:#dcfce7; color:#166534; }
-.capital { background:#ede9fe; color:#6d28d9; }
-.excluded { background:#fee2e2; color:#991b1b; }
-.chart { height:260px; display:flex; align-items:flex-end; gap:10px; padding-top:10px; }
-.barwrap { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:flex-end; gap:6px; }
-.bar { border-radius:10px 10px 0 0; min-height:2px; }
-.bar.core { background:#60a5fa; }
-.bar.disc { background:#f59e0b; }
-.bar.capital { background:#8b5cf6; }
-.bar.reimb { background:#22c55e; }
-.axislabel { font-size:.75rem; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
-.two { grid-template-columns:1.15fr .85fr; }
-.three { grid-template-columns:1.1fr .9fr; }
-.importbox { border:1.5px dashed #cbd5e1; border-radius:16px; padding:14px; background:#fafcff; }
-.warn { color:var(--warn); }
-.good { color:var(--good); }
-.sectiontitle { margin:0 0 10px; font-size:1.05rem; }
-hr.sep { border:none; border-top:1px solid var(--line); margin:14px 0; }
-footer { color:var(--muted); font-size:.82rem; padding:18px 0 28px; }
-@media (max-width: 900px) {
-  .kpis, .two, .three { grid-template-columns:1fr; }
-  .chart { height:220px; }
-}
-</style>
-</head>
-<body>
-<header>
-  <div class="wrap">
-    <div class="topbar">
-      <div>
-        <h1>Aletheia Spend Control</h1>
-        <div class="subtitle">Core burn rate, discretionary spending, reimbursables, and capital purchases across Apple Card, Amex, and Burke &amp; Herbert.</div>
-      </div>
-      <div class="flex">
-        <button class="secondary" id="exportBackup">Export Backup</button>
-        <label class="filebtn" for="importBackup" style="cursor:pointer;margin:0;">Import Backup</label>
-        <input id="importBackup" type="file" accept=".json" style="display:none">
-        <button class="primary" id="resetAll">Reset All Data</button>
-      </div>
-    </div>
-    <div class="tabs">
-      <button class="tabbtn active" data-panel="dashboard">Dashboard</button>
-      <button class="tabbtn" data-panel="imports">Imports</button>
-      <button class="tabbtn" data-panel="rules">Rules</button>
-      <button class="tabbtn" data-panel="transactions">Transactions</button>
-    </div>
-  </div>
-</header>
+ <script>
 
-<main>
-  <div class="wrap">
-    <section class="panel active" id="dashboard">
-      <div class="card" style="margin-bottom:14px;">
-        <div class="grid three">
-          <div>
-            <label for="periodSelect">Analysis period</label>
-            <select id="periodSelect">
-              <option value="all">All imported data</option>
-              <option value="12">Last 12 months</option>
-              <option value="6">Last 6 months</option>
-              <option value="3">Last 3 months</option>
-              <option value="1">Current month</option>
-            </select>
-          </div>
-          <div>
-            <label for="monthFilter">Or focus on one month</label>
-            <input id="monthFilter" type="month">
-          </div>
-          <div>
-            <label>&nbsp;</label>
-            <button class="secondary" id="clearMonth">Clear month focus</button>
-          </div>
-        </div>
-      </div>
+const STORAGE_KEY = "expense_tracker_v3";
 
-      <div class="grid kpis">
-        <div class="card"><h3>Core spend</h3><div class="big" id="kpiCore">$0</div><div class="note">Baseline cost of living. Travel and reimbursables excluded.</div></div>
-        <div class="card"><h3>Discretionary</h3><div class="big" id="kpiDisc">$0</div><div class="note">Travel and other optional spending.</div></div>
-        <div class="card"><h3>Reimbursable</h3><div class="big" id="kpiReimb">$0</div><div class="note">Tracked, but removed from true spending.</div></div>
-        <div class="card"><h3>Capital / irregular</h3><div class="big" id="kpiCapital">$0</div><div class="note">One-time purchases kept visible but separate.</div></div>
-      </div>
+let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 
-      <div class="grid two" style="margin-top:14px;">
-        <div class="card">
-          <h3>Monthly profile</h3>
-          <div class="note">Stacked bars show the four analytical buckets by month.</div>
-          <div class="chart" id="monthlyChart"></div>
-        </div>
-        <div class="card">
-          <h3>Decision view</h3>
-          <table>
-            <tbody>
-              <tr><th>True spending</th><td class="amount" id="trueSpend">$0</td></tr>
-              <tr><th>Average monthly core</th><td class="amount" id="avgCore">$0</td></tr>
-              <tr><th>Average monthly discretionary</th><td class="amount" id="avgDisc">$0</td></tr>
-              <tr><th>Largest reimbursable month</th><td class="amount" id="maxReimb">$0</td></tr>
-              <tr><th>Largest capital month</th><td class="amount" id="maxCapital">$0</td></tr>
-              <tr><th>Transactions analyzed</th><td class="amount" id="txCount">0</td></tr>
-            </tbody>
-          </table>
-          <hr class="sep">
-          <div class="note" id="insightText"></div>
-        </div>
-      </div>
+const RULES = [
 
-      <div class="grid two" style="margin-top:14px;">
-        <div class="card">
-          <h3>Top spending merchants</h3>
-          <div class="note">Only core + discretionary spending. Reimbursables, payments, and transfers removed.</div>
-          <table><thead><tr><th>Merchant</th><th>Bucket</th><th class="amount">Amount</th></tr></thead><tbody id="merchantTable"></tbody></table>
-        </div>
-        <div class="card">
-          <h3>By account</h3>
-          <table><thead><tr><th>Account</th><th>Core</th><th>Discretionary</th><th>Reimbursable</th><th class="amount">Total flow</th></tr></thead><tbody id="accountTable"></tbody></table>
-        </div>
-      </div>
-    </section>
+  { match: "nezar mansy", reimb: true, category: "Client reimbursed" },
 
-    <section class="panel" id="imports">
-      <div class="grid two">
-        <div class="card importbox">
-          <h3 class="sectiontitle">Import CSV files</h3>
-          <div class="note">Choose one or more CSV exports. Apple Card is recognized exactly. Amex and Burke &amp; Herbert use flexible header matching.</div>
-          <div style="margin-top:12px;" class="flex">
-            <label class="filebtn" for="csvInput" style="cursor:pointer;">Choose CSV files</label>
-            <input id="csvInput" type="file" accept=".csv,text/csv" multiple style="display:none">
-            <button class="secondary" id="loadDemoApple">Reload Apple Card data</button>
-          </div>
-          <div id="importStatus" class="note" style="margin-top:12px;">No new import yet.</div>
-        </div>
-        <div class="card">
-          <h3 class="sectiontitle">What gets excluded automatically</h3>
-          <ul class="note" style="padding-left:18px; margin:0; line-height:1.5;">
-            <li>Card payments and account transfers</li>
-            <li>Client-reimbursed merchants in your rules</li>
-            <li>Credits and refunds from true spending totals</li>
-            <li>Travel from core burn rate</li>
-          </ul>
-        </div>
-      </div>
+  { match: "capitol hill club", reimb: true, category: "Client reimbursed" },
 
-      <div class="card" style="margin-top:14px;">
-        <h3>Imported sources</h3>
-        <table>
-          <thead><tr><th>Source</th><th>Transactions</th><th>Earliest</th><th>Latest</th><th>Accounts</th></tr></thead>
-          <tbody id="sourceSummary"></tbody>
-        </table>
-      </div>
-    </section>
+  { match: "116 club", reimb: true, category: "Client reimbursed" },
 
-    <section class="panel" id="rules">
-      <div class="grid two">
-        <div class="card">
-          <h3>Merchant rules</h3>
-          <div class="note">Match text is checked against merchant and description, case-insensitive.</div>
-          <table>
-            <thead><tr><th>Match text</th><th>Bucket</th><th>Category</th><th>Note</th><th></th></tr></thead>
-            <tbody id="rulesBody"></tbody>
-          </table>
-        </div>
-        <div class="card">
-          <h3>Add a new rule</h3>
-          <div class="grid">
-            <div><label>Match text</label><input id="newMatch" type="text" placeholder="e.g. saatva"></div>
-            <div><label>Bucket</label>
-              <select id="newBucket">
-                <option value="core">Core</option>
-                <option value="discretionary">Discretionary</option>
-                <option value="reimbursable">Reimbursable</option>
-                <option value="capital">Capital</option>
-                <option value="excluded">Excluded</option>
-              </select>
-            </div>
-            <div><label>Category label</label><input id="newCategory" type="text" placeholder="e.g. Furniture"></div>
-            <div><label>Note</label><input id="newNote" type="text" placeholder="optional note"></div>
-            <button class="primary" id="addRule">Add rule</button>
-          </div>
-          <hr class="sep">
-          <div class="note">
-            Preloaded rules include:<br>
-            Nezar Mansy → reimbursable<br>
-            Capitol Hill Club → reimbursable<br>
-            116 Club → reimbursable<br>
-            National Democratic Club → reimbursable<br>
-            Travel → discretionary
-          </div>
-        </div>
-      </div>
-    </section>
+  { match: "national democratic club", reimb: true, category: "Client reimbursed" }
 
-    <section class="panel" id="transactions">
-      <div class="card">
-        <div class="grid three">
-          <div><label>Search</label><input id="searchTx" type="text" placeholder="merchant or description"></div>
-          <div><label>Bucket</label>
-            <select id="bucketFilter">
-              <option value="">All</option>
-              <option value="core">Core</option>
-              <option value="discretionary">Discretionary</option>
-              <option value="reimbursable">Reimbursable</option>
-              <option value="capital">Capital</option>
-              <option value="excluded">Excluded</option>
-            </select>
-          </div>
-          <div><label>Account</label><select id="accountFilter"><option value="">All accounts</option></select></div>
-        </div>
-      </div>
-      <div class="card" style="margin-top:14px;">
-        <table>
-          <thead><tr><th>Date</th><th>Merchant</th><th>Account</th><th>Bucket</th><th>Category</th><th>Person</th><th class="amount">Amount</th></tr></thead>
-          <tbody id="txTable"></tbody>
-        </table>
-      </div>
-    </section>
+];
 
-    <footer>
-      This app stores data in your browser on the device where you use it. Use Export Backup periodically so you have a portable copy.
-    </footer>
-  </div>
-</main>
-
-<script>
-const STORAGE_KEY = "aletheia-spend-control-v1";
-const APP = {
-  data: {
-    transactions: [],
-    rules: [],
-    loadedDemoApple: false
-  },
-  defaults: {
-    rules: [
-      {match:"nezar mansy", bucket:"reimbursable", category:"Client reimbursed", note:"Brenda car service; reimbursed"},
-      {match:"capitol hill club", bucket:"reimbursable", category:"Client reimbursed", note:"Client reimbursed"},
-      {match:"116 club", bucket:"reimbursable", category:"Client reimbursed", note:"Client reimbursed"},
-      {match:"national democratic club", bucket:"reimbursable", category:"Client reimbursed", note:"Client reimbursed"},
-      {match:"amtrak", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"united airlines", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"airlines", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"hotel", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"marriott", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"hyatt", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"hilton", bucket:"discretionary", category:"Travel", note:"Travel treated as discretionary"},
-      {match:"apple", bucket:"capital", category:"Electronics", note:"Large Apple purchases may be capital/irregular"},
-      {match:"saatva", bucket:"capital", category:"Furniture", note:"Capital/irregular"},
-      {match:"payment", bucket:"excluded", category:"Payment/transfer", note:"Exclude payments from spending"},
-      {match:"transfer", bucket:"excluded", category:"Payment/transfer", note:"Exclude transfers from spending"}
-    ],
-    demoApple: [{"source":"Apple Card","account":"Apple Card","date":"2026-04-18","postedDate":"2026-04-19","merchant":"Bath Community Pharmac","description":"BATH COMMUNITY PHARMAC9405 SAM SNEAD HWY HOT SPRING24445 VA USA","rawCategory":"Other","txType":"Purchase","amount":5.57,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-18","postedDate":"2026-04-18","merchant":"Warm Springs Galle","description":"SQ *WARM SPRINGS GALLE12 KATYDID TRAIL WARM SPRIN24484 VA USA","rawCategory":"Other","txType":"Purchase","amount":34.75,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-17","postedDate":"2026-04-18","merchant":"Cardinal Home Center S","description":"CARDINAL HOME CENTER S902 RICHMOND RD STAUNTON 24401 VA USA","rawCategory":"Other","txType":"Purchase","amount":543.06,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-18","merchant":"The Home Depot","description":"HOMEDEPOT.COM 2455 PACES FERRY ROAD 800-430-33303390000 GA USA","rawCategory":"Other","txType":"Purchase","amount":31.57,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-17","postedDate":"2026-04-18","merchant":"Amtrak","description":"AMTRAK NRTHEAST CAFE Q1 MASSACHUSETTS AVE NW WASHINGTON20001 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":10.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-18","merchant":"Mastro's-washington","description":"MASTRO'S-WASHINGTON 600 13TH STREET NW WASHINGTON20005 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":38.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-17","postedDate":"2026-04-18","merchant":"Wegmans Charlottes #12","description":"WEGMANS CHARLOTTES #12100 WEGMANS WAY CHARLOTTES22902 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":193.25,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-17","postedDate":"2026-04-18","merchant":"Feast","description":"SQ *FEAST 416 W MAIN ST CHARLOTTES22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":15.45,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-17","merchant":"Virginia ABC Store","description":"VA ABC STORE 113 2827 MAIN ST HOT SPRING24445 VA USA","rawCategory":"Govt-services-parking","txType":"Purchase","amount":105.29,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-17","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-17","postedDate":"2026-04-17","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-16","merchant":"Warm Springs Galle","description":"SQ *WARM SPRINGS GALLE12 KATYDID TRAIL WARM SPRIN24484 VA USA","rawCategory":"Other","txType":"Purchase","amount":15.52,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-16","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 500 CONSTITUTION AVENUE NORTHEAST WASHINGTON20002 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-16","postedDate":"2026-04-16","merchant":"Albemarle Baking Company","description":"SQ *ALBEMARLE BAKING C418 W MAIN ST CHARLOTTES22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":75.42,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-16","merchant":"Autozone #5020","description":"AUTOZONE #5020 1136 N LEE HWY LEXINGTON 24450 VA USA","rawCategory":"Other","txType":"Purchase","amount":52.63,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-16","merchant":"Virginia ABC Store","description":"VA ABC STORE 113 2827 MAIN ST HOT SPRING24445 VA USA","rawCategory":"Govt-services-parking","txType":"Purchase","amount":84.23,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-16","merchant":"Belle View Jewelers","description":"SQ *BELLE VIEW JEWELER1604 BELLE VIEW BLVD ALEXANDRIA22307 VA USA","rawCategory":"Other","txType":"Purchase","amount":550.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-16","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":48.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-16","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":48.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-16","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-15","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-14","postedDate":"2026-04-15","merchant":"Id Of K Street","description":"ID OF K STREET 4700 EXCHANGE COURT SUITE BOCA RATON33431 FL USA","rawCategory":"Medical","txType":"Purchase","amount":278.69,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-15","postedDate":"2026-04-15","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2250.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-14","postedDate":"2026-04-15","merchant":"Bergerusa","description":"SP BERGERUSA 821 WEST COLLEGE AVENUE WAUKESHA 53186 WI USA","rawCategory":"Other","txType":"Purchase","amount":82.49,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-14","postedDate":"2026-04-15","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-14","postedDate":"2026-04-15","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-14","postedDate":"2026-04-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-14","postedDate":"2026-04-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2560 VIRGINIA AVENUE NORTHWEST WASHINGTON20037 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-14","merchant":"Ch-arlington, Va  #61","description":"CH-ARLINGTON, VA #61 1100 S HAYES ST SPACE P1 ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":159.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-14","merchant":"Nytimes.com","description":"NYTIMES* 620 8TH AVE NEW YORK 10018 NY USA","rawCategory":"Other","txType":"Purchase","amount":25.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-14","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*B79ZZ3Z30440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":697.09,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-14","merchant":"Dupray.Com","description":"SP DUPRAY.COM 40E MAIN STREET NEWARK 19711 DE USA","rawCategory":"Other","txType":"Purchase","amount":52.64,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-13","postedDate":"2026-04-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1548 NEW JERSEY AVENUE NORTHWEST WASHINGTON20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Safeway","description":"SAFEWAY 1019 1624 BELLE VIEW ALEXANDRIA22307 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":65.41,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":124.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Apple Pentagon City","description":"APPLE STORE #R129 1100 S HAYES ST LOT PO4A ARLINGTON 22202 VA USA","rawCategory":"Other","txType":"Purchase","amount":42.35,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Apple Pentagon City","description":"APPLE STORE #R129 1100 S HAYES ST LOT PO4A ARLINGTON 22202 VA USA","rawCategory":"Other","txType":"Purchase","amount":263.94,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Nordstrom","description":"NORDSTROM #0621 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":440.5,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Nord Marketplace","description":"TST* NORD MARKETPLACE 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":67.47,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-13","merchant":"Thrivecausemetics","description":"SP THRIVECAUSEMETICS 10900 NORTHEAST 4TH STREET BELLEVUE 98004 WA USA","rawCategory":"Other","txType":"Purchase","amount":47.39,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-11","postedDate":"2026-04-12","merchant":"Safeway","description":"SAFEWAY 1019 1624 BELLE VIEW ALEXANDRIA22307 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":22.43,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-11","postedDate":"2026-04-12","merchant":"Balducci's","description":"BALDUCCI'S #3601 600 FRANKLIN ST ALEXANDRIA22314 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":119.81,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-12","postedDate":"2026-04-12","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-11","postedDate":"2026-04-12","merchant":"Marathon 207944","description":"MARATHON 207944 101 CRAIG STREET CRAIGSVILL24430 VA USA","rawCategory":"Gas","txType":"Purchase","amount":65.05,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-11","postedDate":"2026-04-12","merchant":"Jersey Mike's Subs","description":"JERSEY MIKES ONLINE UC2251 LANDMARK PL MANASQUAN 08736 NJ USA","rawCategory":"Restaurants","txType":"Purchase","amount":12.69,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-10","postedDate":"2026-04-12","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":111.6,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-09","postedDate":"2026-04-10","merchant":"Martha's Market","description":"MARTHAS MARKET HSR 7696 SAM SNEAD HWY HOT SPRING24445-2775 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":10.93,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-09","postedDate":"2026-04-10","merchant":"D J*wsj","description":"D J*WSJ 4300 RTE 1 N MONMOUTH J08852 NJ USA","rawCategory":"Other","txType":"Purchase","amount":8.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-09","postedDate":"2026-04-10","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":19.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-09","postedDate":"2026-04-09","merchant":"Spotify","description":"SPOTIFY USA 45 W. 18TH STREET NEW YORK 10011 NY USA","rawCategory":"Utilities","txType":"Purchase","amount":12.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-08","postedDate":"2026-04-09","merchant":"Med*gw Med Faculty Ass","description":"MED*GW MED FACULTY ASS45155 RESEARCH PL STE 240 ASHBURN 20147 VA USA","rawCategory":"Medical","txType":"Purchase","amount":500.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-06","postedDate":"2026-04-07","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":69.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-04","postedDate":"2026-04-05","merchant":"Food Lion","description":"FOOD LION #0774 84 E. MIDLAND TRAIL LEXINGTON 24450 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":110.51,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-04","postedDate":"2026-04-04","merchant":"Cavo","description":"SP CAVO 5830 E 2ND ST, STE 7000 #17063, CASPER, WYOMI CASPER 82609 WY USA","rawCategory":"Grocery","txType":"Purchase","amount":80.81,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-01","postedDate":"2026-04-02","merchant":"Marathon 207944","description":"MARATHON 207944 101 CRAIG STREET CRAIGSVILLE 24430 VA USA","rawCategory":"Gas","txType":"Purchase","amount":59.7,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-01","postedDate":"2026-04-02","merchant":"Wegmans Charlottes #12","description":"WEGMANS CHARLOTTES #12100 WEGMANS WAY CHARLOTTESVIL22902 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":273.16,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-31","postedDate":"2026-04-02","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*BC4D86RK2440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":31.58,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-01","postedDate":"2026-04-02","merchant":"Feast","description":"SQ *FEAST 416 W MAIN ST CHARLOTTESVIL22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":26.56,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-01","postedDate":"2026-04-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-31","postedDate":"2026-04-02","merchant":"Rakuten Kobo Inc","description":"SP RAKUTEN KOBO INC 251 LITTLE FALLS DRIVE WILMINGTON 19808-1674DE USA","rawCategory":"Other","txType":"Purchase","amount":210.59,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-31","postedDate":"2026-04-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-31","postedDate":"2026-04-02","merchant":"Albemarle Baking Company","description":"SQ *ALBEMARLE BAKING C418 W MAIN ST CHARLOTTESVIL22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":93.48,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-04-02","merchant":"Had*harry & David","description":"HAD*HARRY & DAVID 2500 S PACIFIC HWY MEDFORD 97501 OR USA","rawCategory":"Grocery","txType":"Purchase","amount":92.9,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-31","postedDate":"2026-04-02","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-31","postedDate":"2026-04-02","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-04-01","postedDate":"2026-04-01","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-5000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-31","merchant":"Le Diplomate","description":"TST* STARR - LE DIPLOM1601 14TH ST NW WASHINGTON 20009 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":112.2,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-31","merchant":"Med*gw Med Faculty Ass","description":"MED*GW MED FACULTY ASS45155 RESEARCH PL STE 240 ASHBURN 20147 VA USA","rawCategory":"Medical","txType":"Purchase","amount":35.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-30","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*B59EH2RZ0440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":31.37,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-30","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":36.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-30","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1841 COLUMBIA ROAD NORTHWEST WASHINGTON 20009 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-30","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-30","merchant":"Microsoft","description":"MICROSOFT*STORE 1 MICROSOFT WAY REDMOND 98052 WA USA","rawCategory":"Other","txType":"Purchase","amount":9.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-30","postedDate":"2026-03-30","merchant":"The New Yorker","description":"THE NEW YORKER ONE WORLD TRADE CENTER NEW YORK 10007 NY USA","rawCategory":"Other","txType":"Purchase","amount":49.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-29","postedDate":"2026-03-29","merchant":"tidal.com","description":"TIDAL.COM BRICKELL AVENUE, 18TH FLOOR 1450 MIAMI 33131 FL USA","rawCategory":"Other","txType":"Purchase","amount":16.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-28","postedDate":"2026-03-29","merchant":"Tst*frankies Kitchen &823 S Washington St Alexandria 22314 Va Usa (dispute Credit)","description":"TST*FRANKIES KITCHEN &823 S WASHINGTON ST ALEXANDRIA 22314 VA USA (DISPUTE CREDIT)","rawCategory":"Credit","txType":"Credit","amount":-93.48,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-28","postedDate":"2026-03-29","merchant":"Frankies Kitchen &","description":"TST*FRANKIES KITCHEN &823 S WASHINGTON ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":93.48,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-29","postedDate":"2026-03-29","merchant":"Amazon Prime","description":"AMAZON PRIME*BC3QX00D2440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":2.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-28","postedDate":"2026-03-29","merchant":"Valley Supermarket","description":"VALLEY SUPERMARKET 9110 SAM SNEAD HWY HOT SPRINGS 24445 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":32.79,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-27","postedDate":"2026-03-28","merchant":"Sa-sah Salon Llc","description":"SA-SAH SALON LLC 625 S WASHINGTON ST ALEXANDRIA 22314 VA USA","rawCategory":"Other","txType":"Purchase","amount":305.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-27","postedDate":"2026-03-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-27","postedDate":"2026-03-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-26","postedDate":"2026-03-27","merchant":"Taqueria Jalisco","description":"TST*TAQUERIA JALISCO 453 E NELSON ST LEXINGTON 24450 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":14.23,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-26","postedDate":"2026-03-27","merchant":"Food Lion","description":"FOOD LION #0774 84 E. MIDLAND TRAIL LEXINGTON 24450 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":62.13,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-26","postedDate":"2026-03-27","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-26","postedDate":"2026-03-27","merchant":"Ck Dental & Associates","description":"CK DENTAL & ASSOCIATES919 18TH ST NW STE 350 WASHINGTON 20006 DC USA","rawCategory":"Medical","txType":"Purchase","amount":195.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-26","postedDate":"2026-03-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-26","postedDate":"2026-03-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-25","postedDate":"2026-03-26","merchant":"LAZ Parking","description":"LAZ PARKING M07279-DP 700 PENNSYLVANIA AVE SE WASHINGTON 20003 DC USA","rawCategory":"Other","txType":"Purchase","amount":11.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-25","postedDate":"2026-03-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-25","postedDate":"2026-03-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-25","merchant":"Ocean Prime","description":"TST* 57 OCEAN PRIME WA1341 G ST NW WASHINGTON 20005 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":160.65,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-25","merchant":"Saks New York  601","description":"SAKS NEW YORK 601 611 FIFTH AVENUE NEW YORK 10022 NY USA","rawCategory":"Shopping","txType":"Purchase","amount":142.16,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-25","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-25","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":48.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-25","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-25","merchant":"Macy's","description":"MACYS METRO CENTER 1201 G ST NW WASHINGTON 20005 DC USA","rawCategory":"Shopping","txType":"Purchase","amount":74.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-23","postedDate":"2026-03-25","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":18.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-24","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":26.54,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 401 3RD STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-24","postedDate":"2026-03-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-23","postedDate":"2026-03-24","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*B55J400Y1440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":9.47,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-23","postedDate":"2026-03-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-23","postedDate":"2026-03-24","merchant":"Junction Bakery &","description":"TST*JUNCTION BAKERY & 238 MASSACHUSETTS AVE NE WASHINGTON 20002 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":37.32,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-22","postedDate":"2026-03-23","merchant":"Sheetz 2872","description":"SHEETZ 2872 280 PARSON STREET MT CRAWFORD 22841 VA USA","rawCategory":"Gas","txType":"Purchase","amount":56.7,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-22","postedDate":"2026-03-23","merchant":"Cooper Mill","description":"TST*COOPER MILL 10 DUKE ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":72.04,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"L'avenue Cafe      Qps","description":"L'AVENUE CAFE QPS611 5TH AVENUE 8TH FLOOR NEW YORK 10021 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":64.44,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-21","postedDate":"2026-03-21","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":108.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Starbucks 8007827282","description":"STARBUCKS 8007827282 2401 UTAH AVE S SEATTLE 98134 WA USA","rawCategory":"Restaurants","txType":"Purchase","amount":50.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"La Grande Boucheri","description":"TST*LA GRANDE BOUCHERI145 W 53RD ST NEW YORK 10019 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":121.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"La Grande Boucheri","description":"TST*LA GRANDE BOUCHERI145 W 53RD ST NEW YORK 10019 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":20.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"La Grande Boucheri","description":"TST*LA GRANDE BOUCHERI145 W 53RD ST NEW YORK 10019 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":223.79,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Lobby Lounge","description":"HILTON LOBBY LOUNGE 1335 AVENUE OF THE A NEW YORK 10019-6012NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":64.42,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-21","postedDate":"2026-03-21","merchant":"Netflix","description":"NETFLIX.COM 121 ALBRIGHT WAY LOS GATOS 95032 CA USA","rawCategory":"Utilities","txType":"Purchase","amount":24.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Pret A Manger (USA)","description":"PRET A MANGER US0004 1350 6TH AVENUE NEW YORK 10019 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":10.78,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Pret A Manger (USA)","description":"PRET A MANGER US0004 1350 6TH AVENUE NEW YORK 10019 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":13.64,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Saks New York  601","description":"SAKS NEW YORK 601 611 FIFTH AVENUE NEW YORK 10022 NY USA","rawCategory":"Shopping","txType":"Purchase","amount":1695.39,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Saks New York  601","description":"SAKS NEW YORK 601 611 FIFTH AVENUE NEW YORK 10022 NY USA","rawCategory":"Shopping","txType":"Purchase","amount":1210.95,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-21","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-21","merchant":"Hp *instant Ink","description":"HP *INSTANT INK 3400 HANOVER ST PALO ALTO 94304 CA USA","rawCategory":"Other","txType":"Purchase","amount":29.47,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-21","postedDate":"2026-03-21","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-4000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-20","postedDate":"2026-03-20","merchant":"Bluemercury 130","description":"BLUEMERCURY 130 1335 6TH AVENUE NEW YORK 10019 NY USA","rawCategory":"Other","txType":"Purchase","amount":156.78,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-20","merchant":"Lobby Lounge","description":"HILTON LOBBY LOUNGE 1335 AVENUE OF THE A NEW YORK 10019-6012NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":91.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-20","merchant":"Pret A Manger (USA)","description":"PRET A MANGER US0004 1350 6TH AVENUE NEW YORK 10019 NY USA","rawCategory":"Restaurants","txType":"Purchase","amount":30.81,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-20","merchant":"55th Street Wine & Spirits","description":"55TH STREET WINE & SPI50 WEST 55TH STREET NEW YORK 10019 NY USA","rawCategory":"Alcohol","txType":"Purchase","amount":19.59,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-19","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":108.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-19","merchant":"Bluemercury 130","description":"BLUEMERCURY 130 1335 6TH AVENUE NEW YORK 10019 NY USA","rawCategory":"Other","txType":"Purchase","amount":41.37,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-19","postedDate":"2026-03-19","merchant":"Bluemercury 130","description":"BLUEMERCURY 130 1335 6TH AVENUE NEW YORK 10019 NY USA","rawCategory":"Other","txType":"Purchase","amount":78.39,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-18","postedDate":"2026-03-19","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":36.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-18","postedDate":"2026-03-19","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-18","postedDate":"2026-03-19","merchant":"Closeknit L Street","description":"CLOSEKNIT L STREET 1920 L ST NW STE 350 WASHINGTON 20036-5072DC USA","rawCategory":"Medical","txType":"Purchase","amount":35.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-18","postedDate":"2026-03-18","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-18","postedDate":"2026-03-18","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":48.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-18","merchant":"Safeway","description":"SAFEWAY 1019 1624 BELLE VIEW ALEXANDRIA 22307 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":21.16,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-18","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-18","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-18","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-18","postedDate":"2026-03-18","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-4000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-17","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-17","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-16","postedDate":"2026-03-17","merchant":"Frankies Kitchen &","description":"TST*FRANKIES KITCHEN &823 S WASHINGTON ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":107.91,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-16","postedDate":"2026-03-17","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":40.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-16","postedDate":"2026-03-17","merchant":"Nytimes.com","description":"NYTIMES* 620 8TH AVE NEW YORK 10018 NY USA","rawCategory":"Other","txType":"Purchase","amount":25.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-17","postedDate":"2026-03-17","merchant":"Amazon Kindle","description":"KINDLE SVCS*B52Y020M2 440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":14.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-16","postedDate":"2026-03-17","merchant":"Anthropologie  00564","description":"ANTHROPOLOGIE 00564 610 KING ST ALEXANDRIA 22314-3106VA USA","rawCategory":"Shopping","txType":"Purchase","amount":72.08,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-16","postedDate":"2026-03-16","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-16","postedDate":"2026-03-16","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-15","postedDate":"2026-03-16","merchant":"Sheetz 2872","description":"SHEETZ 2872 280 PARSON STREET MT CRAWFORD 22841 VA USA","rawCategory":"Gas","txType":"Purchase","amount":41.3,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-15","postedDate":"2026-03-16","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA 22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":200.36,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-15","postedDate":"2026-03-16","merchant":"Apexup Shop","description":"SP APEXUP SHOP 274 HALLOCK RD STONY BROOK 11790 NY USA","rawCategory":"Other","txType":"Purchase","amount":54.27,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-14","postedDate":"2026-03-15","merchant":"Cooper Mill","description":"TST*COOPER MILL 10 DUKE ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":136.24,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-13","postedDate":"2026-03-14","merchant":"UNITED AIRLINES","description":"UNITED 600 JEFFERSON ST HQJCM 19TH FL HOUSTON 77002 TX USA","rawCategory":"Airlines","txType":"Purchase","amount":1128.53,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-13","postedDate":"2026-03-14","merchant":"UNITED AIRLINES","description":"UNITED 600 JEFFERSON ST HQJCM 19TH FL HOUSTON 77002 TX USA","rawCategory":"Airlines","txType":"Purchase","amount":1128.53,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-14","postedDate":"2026-03-14","merchant":"Prime Video *bp1h10w61","description":"PRIME VIDEO *BP1H10W61440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":4.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-13","postedDate":"2026-03-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-13","postedDate":"2026-03-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-12","postedDate":"2026-03-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-12","postedDate":"2026-03-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-12","postedDate":"2026-03-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-11","postedDate":"2026-03-12","merchant":"Amazon","description":"AMAZON RETA* BD32M5H92410 TERRY AVENUE NORTH SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":21.82,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-12","postedDate":"2026-03-12","merchant":"Amazon Kindle","description":"KINDLE SVCS*BD6O43M62 440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":14.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-11","postedDate":"2026-03-12","merchant":"Amtrak .com 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK .COM 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-64.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-12","postedDate":"2026-03-12","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.65,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-11","postedDate":"2026-03-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-11","postedDate":"2026-03-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-10","postedDate":"2026-03-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-10","postedDate":"2026-03-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 2030 8TH STREET NORTHWEST WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-10","postedDate":"2026-03-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-10","postedDate":"2026-03-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-09","postedDate":"2026-03-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-08","postedDate":"2026-03-09","merchant":"Prairie Nursery","description":"PRAIRIE NURSERY PO BOX 306 WESTFIELD 53964 WI USA","rawCategory":"Other","txType":"Purchase","amount":195.32,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-09","postedDate":"2026-03-09","merchant":"Spotify P403297179","description":"SPOTIFY P403297179 4 WORLD TRADE CENTER 150 GREENWICH STREET NEW YORK 10007 NY USA","rawCategory":"Utilities","txType":"Purchase","amount":12.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-09","postedDate":"2026-03-09","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 651 CONSTITUTION AVENUE NORTHEAST WASHINGTON 20002 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-08","postedDate":"2026-03-09","merchant":"Amtrak .com 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK .COM 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-46.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-09","postedDate":"2026-03-09","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.47,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-08","postedDate":"2026-03-09","merchant":"Amtrak .com 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK .COM 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-57.6,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-09","postedDate":"2026-03-09","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.58,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-07","postedDate":"2026-03-09","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":107.1,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-08","postedDate":"2026-03-09","merchant":"Marathon 207944","description":"MARATHON 207944 101 CRAIG STREET CRAIGSVILLE 24430 VA USA","rawCategory":"Gas","txType":"Purchase","amount":41.95,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-08","postedDate":"2026-03-08","merchant":"Etsy","description":"ETSY.COM*CANECREEKMEADADAMS STREET BROOKLYN 11201 NY USA","rawCategory":"Shopping","txType":"Purchase","amount":43.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-08","postedDate":"2026-03-08","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-1500.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-08","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":104.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-07","postedDate":"2026-03-08","merchant":"Miamiskin8448298772","description":"MIAMISKIN8448298772 401 EAST LAS OLAS BOULEVARD 130-250 FORT LAUDERDA33301 FL USA","rawCategory":"Other","txType":"Purchase","amount":132.3,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-08","merchant":"Shefferman Orthodontics","description":"SHEFFERMAN ORTHODONTIC1747 PENNSYLVANIA AVE. NW #120 WASHINGTON 20006 DC USA","rawCategory":"Medical","txType":"Purchase","amount":4465.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-07","postedDate":"2026-03-08","merchant":"Prime Video *be5jx6w11","description":"PRIME VIDEO *BE5JX6W11440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":14.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-07","merchant":"Home Depot","description":"THE HOME DEPOT #4654 31 WINDIGROVE RD WAYNESBORO 229800000 VA USA","rawCategory":"Other","txType":"Purchase","amount":12.38,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-07","postedDate":"2026-03-07","merchant":"Cavo","description":"SP CAVO 5830 E 2ND ST, STE 7000 #17063, CASPER, WYOMI CASPER 82609 WY USA","rawCategory":"Grocery","txType":"Purchase","amount":80.81,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-07","merchant":"Exxon","description":"EXXON 5TH STREET EXXON1154 5TH STREET CHARLOTTESVIL22901 VA USA","rawCategory":"Gas","txType":"Purchase","amount":35.85,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-07","merchant":"Wegmans Charlottes #12","description":"WEGMANS CHARLOTTES #12100 WEGMANS WAY CHARLOTTESVIL22902 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":293.58,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-07","merchant":"Wegmans Charlottes #12","description":"WEGMANS CHARLOTTES #12100 WEGMANS WAY CHARLOTTESVIL22902 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":16.46,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-07","merchant":"Prime Video *bp1287qq2","description":"PRIME VIDEO *BP1287QQ2440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":9.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-06","postedDate":"2026-03-06","merchant":"Feast","description":"SQ *FEAST 416 W MAIN ST CHARLOTTESVIL22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":27.57,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-05","postedDate":"2026-03-06","merchant":"Starr - The Occid","description":"TST* STARR - THE OCCID1475 PENNSYLVANIA AVE NW WASHINGTON 20004 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":75.7,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-05","postedDate":"2026-03-06","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 23745 AUTOPILOT DRIVE STERLING 20166 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-05","postedDate":"2026-03-06","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-05","postedDate":"2026-03-06","merchant":"Albemarle Baking Company","description":"SQ *ALBEMARLE BAKING C418 W MAIN ST CHARLOTTESVIL22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":78.79,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-03","postedDate":"2026-03-05","merchant":"Tunemymusic","description":"PAYPAL *TUNEMYMUSIC HPLX 7 4029357733 6816727 ISRISR","rawCategory":"Other","txType":"Purchase","amount":24.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-05","postedDate":"2026-03-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3400 GEORGIA AVENUE NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-04","postedDate":"2026-03-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-04","postedDate":"2026-03-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":60.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-04","postedDate":"2026-03-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-04","postedDate":"2026-03-04","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-04","postedDate":"2026-03-04","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":60.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-03","postedDate":"2026-03-04","merchant":"Sunoco 8002178302  Qps","description":"SUNOCO 8002178302 QPS1201 BELLE HAVEN RD ALEXANDRIA 22307 VA USA","rawCategory":"Gas","txType":"Purchase","amount":41.2,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-03","postedDate":"2026-03-04","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-03","postedDate":"2026-03-04","merchant":"Marathon 207944","description":"MARATHON 207944 101 CRAIG STREET CRAIGSVILLE 24430 VA USA","rawCategory":"Gas","txType":"Purchase","amount":28.35,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-03","postedDate":"2026-03-03","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-02","postedDate":"2026-03-03","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA 22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":142.02,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-02","postedDate":"2026-03-03","merchant":"Exxon Aar Enterprises,","description":"EXXON AAR ENTERPRISES,501 S WASHINGTON ST ALEXANDRIA 22314 VA USA","rawCategory":"Gas","txType":"Purchase","amount":28.9,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-02","postedDate":"2026-03-03","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":61.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-03","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":64.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-02","postedDate":"2026-03-03","merchant":"Hp *hp.Com Store","description":"HP *HP.COM STORE 3000 HANOVER ST PALO ALTO 94304 CA USA","rawCategory":"Other","txType":"Purchase","amount":110.54,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-03","merchant":"Perfume World","description":"PERFUME WORLD 1100 S HAYES ST # S07 ARLINGTON 22202 VA USA","rawCategory":"Other","txType":"Purchase","amount":39.2,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-02","postedDate":"2026-03-02","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-02","postedDate":"2026-03-02","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1022 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Nordstrom","description":"NORDSTROM #0621 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":190.34,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Nordstrom","description":"NORDSTROM #0621 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":26.5,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Nordstrom","description":"NORDSTROM #0621 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":115.54,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Nord Marketplace","description":"TST* NORD MARKETPLACE 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":52.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Prime Video *b93po35l0","description":"PRIME VIDEO *B93PO35L0440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":3.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Cafe Du Soleil Ii","description":"SQ *CAFE DU SOLEIL II 720 JEFFERSON ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":10.32,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Frankies Kitchen &","description":"TST*FRANKIES KITCHEN &823 S WASHINGTON ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":54.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-03-01","postedDate":"2026-03-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"River Bend Bistro","description":"RIVER BEND BISTRO 7966 FT HUNT RD ALEXANDRIA 22308 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":53.01,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA 22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":191.88,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Target        00010769","description":"TARGET 000107693101 JEFFERSON DAVIS ALEXANDRIA 22305 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":81.75,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Virginia Aesthetics","description":"VIRGINIA AESTHETICS 8817 FORT HUNT RD ALEXANDRIA 22308 VA USA","rawCategory":"Medical","txType":"Purchase","amount":439.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-03-02","merchant":"Capital Grille 0138003","description":"CAPITAL GRILLE 0138003601 PENNSYLVANIA AVE NW WASHINGTON 20004 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":101.33,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Saatva Saatva","description":"SAATVA 19-02 WHITESTONE EXPRESSWAY, SUITE 201 WHITESTONE 11357 NY USA","rawCategory":"Other","txType":"Purchase","amount":1473.66,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-03-02","merchant":"Pmusa 758044 Alexandri","description":"PMUSA 758044 ALEXANDRI1100 SPRING ST NW ATLANTA 30309 GA USA","rawCategory":"Other","txType":"Purchase","amount":3.45,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-03-02","merchant":"Pmusa 758044 Alexandri","description":"PMUSA 758044 ALEXANDRI1100 SPRING ST NW ATLANTA 30309 GA USA","rawCategory":"Other","txType":"Purchase","amount":1.45,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-03-02","merchant":"Pmusa 758044 Alexandri","description":"PMUSA 758044 ALEXANDRI1100 SPRING ST NW ATLANTA 30309 GA USA","rawCategory":"Other","txType":"Purchase","amount":1.7,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-03-02","merchant":"Pmusa 758044 Alexandri","description":"PMUSA 758044 ALEXANDRI1100 SPRING ST NW ATLANTA 30309 GA USA","rawCategory":"Other","txType":"Purchase","amount":1.2,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Gscnc Daisy Troop","description":"SQ *GSCNC DAISY TROOP 8030 WASHINGTON RD ALEXANDRIA 22308 VA USA","rawCategory":"Other","txType":"Purchase","amount":12.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-03-02","merchant":"Amazon Prime","description":"AMAZON PRIME*B96Q86AL0440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":2.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-28","postedDate":"2026-02-28","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-02-28","merchant":"Adas On The River","description":"TST*ADAS ON THE RIVER 3 PIONEER MILL WAY ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":196.44,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-26","postedDate":"2026-02-28","merchant":"Scheffres Laundry Service","description":"SCHEFFRES LAUNDRY SERV5016 HERZEL PL BELTSVILLE 207052008 MD USA","rawCategory":"Other","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-02-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-02-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-02-28","merchant":"Amazon","description":"AMAZON DIGI* B98VC33H0410 TERRY AVENUE NORTH SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":24.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-27","postedDate":"2026-02-27","merchant":"tidal.com","description":"TIDAL.COM BRICKELL AVENUE, 18TH FLOOR 1450 MIAMI 33131 FL USA","rawCategory":"Other","txType":"Purchase","amount":16.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-26","postedDate":"2026-02-27","merchant":"Unwined Alexandria","description":"SP UNWINED ALEXANDRIA 2607 ARLINGTON BOULEVARD APT 201 ARLINGTON 22201 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":73.13,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-26","postedDate":"2026-02-26","merchant":"Warm Springs Gallery","description":"SQ *WARM SPRINGS GALLE12 KATYDID TRAIL WARM SPRINGS 24484 VA USA","rawCategory":"Other","txType":"Purchase","amount":21.86,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-26","postedDate":"2026-02-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3400 GEORGIA AVENUE NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-26","postedDate":"2026-02-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1700 H STREET NORTHWEST WASHINGTON 20006 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-26","postedDate":"2026-02-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-26","merchant":"Amazon","description":"AMAZON RETA* B90IN7C50410 TERRY AVENUE NORTH SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":28.46,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-26","merchant":"Virginia ABC Store","description":"VA ABC STORE 113 2827 MAIN ST HOT SPRINGS 24445 VA USA","rawCategory":"Govt-services-parking","txType":"Purchase","amount":87.39,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-26","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-26","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-25","merchant":"Black Crown Collec","description":"SQ *BLACK CROWN COLLEC27 INDEPENDENCE AVE SE WASHINGTON 20004 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":8.5,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-23","postedDate":"2026-02-25","merchant":"Sonos","description":"SONOS INC. 223 E. DE LA GUERRA SANTA BARBARA93101 CA USA","rawCategory":"Other","txType":"Purchase","amount":367.81,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-25","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1300 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-25","postedDate":"2026-02-25","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-24","postedDate":"2026-02-25","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-23","postedDate":"2026-02-24","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*B99RY3361440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":56.25,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-24","postedDate":"2026-02-24","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":26.54,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-24","postedDate":"2026-02-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1300 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-24","postedDate":"2026-02-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1300 MADISON DRIVE NORTHWEST WASHINGTON 20004 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-20","postedDate":"2026-02-24","merchant":"Modern Toyota","description":"MODERN TOYOTA ECOMM 3178 PETERS CREEK PKWY WINSTON SALEM27107 NC USA","rawCategory":"Other","txType":"Purchase","amount":78.89,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-23","postedDate":"2026-02-24","merchant":"wraplondon.com","description":"WRAPLONDON.COM 184 WESTBOURNE GROVE LONDON W11 2RH GBR","rawCategory":"Shopping","txType":"Purchase","amount":241.4,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-23","postedDate":"2026-02-24","merchant":"poetryfashion.com","description":"POETRYFASHION.COM 184 WESTBOURNE GROVE LONDON W11 2RH GBR","rawCategory":"Shopping","txType":"Purchase","amount":357.23,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-23","postedDate":"2026-02-23","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-1000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-21","postedDate":"2026-02-22","merchant":"Amtrak .com 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK .COM 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-84.6,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-22","postedDate":"2026-02-22","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.85,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-21","postedDate":"2026-02-22","merchant":"Amtrak .com 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK .COM 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-46.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-22","postedDate":"2026-02-22","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.47,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-21","postedDate":"2026-02-22","merchant":"Belle View Jewelers","description":"SQ *BELLE VIEW JEWELER1604 BELLE VIEW BLVD ALEXANDRIA 22307 VA USA","rawCategory":"Other","txType":"Purchase","amount":175.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-21","postedDate":"2026-02-22","merchant":"Cellu","description":"SP CELLU SPILSTRAAT 76 ALKMAAR 1825 JH NH NLD","rawCategory":"Other","txType":"Purchase","amount":43.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-21","postedDate":"2026-02-21","merchant":"Netflix","description":"NETFLIX.COM 121 ALBRIGHT WAY LOS GATOS 95032 CA USA","rawCategory":"Utilities","txType":"Purchase","amount":24.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-20","postedDate":"2026-02-21","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":17.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-19","postedDate":"2026-02-21","merchant":"Hp *instant Ink","description":"HP *INSTANT INK 3400 HANOVER ST PALO ALTO 94304 CA USA","rawCategory":"Other","txType":"Purchase","amount":23.16,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-19","postedDate":"2026-02-20","merchant":"Port Of Washington","description":"EB *PORT OF WASHINGTON535 MISSION STREET, 8TH 8014137200 94105 CA USA","rawCategory":"Other","txType":"Purchase","amount":103.22,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-19","postedDate":"2026-02-19","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":4.95,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-18","postedDate":"2026-02-19","merchant":"Wf* Wayfair4577800942 4 Copley Place 7th Floor Boston 02116 Ma Usa (return)","description":"WF* WAYFAIR4577800942 4 COPLEY PLACE 7TH FLOOR BOSTON 02116 MA USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-247.44,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-17","postedDate":"2026-02-18","merchant":"Martha's Market","description":"MARTHAS MARKET HSR 7696 SAM SNEAD HWY HOT SPRINGS 24445-2775VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":18.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-17","postedDate":"2026-02-18","merchant":"Jefferson's Restaurant & Bar","description":"JEFFERSONS BAR HSR 7696 SAM SNEAD HWY HOT SPRINGS 24445-2775VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":87.76,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-18","postedDate":"2026-02-18","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-16","postedDate":"2026-02-18","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":46.8,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-16","postedDate":"2026-02-18","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":84.6,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-16","postedDate":"2026-02-17","merchant":"Nytimes.com","description":"NYTIMES* 620 8TH AVE NEW YORK 10018 NY USA","rawCategory":"Other","txType":"Purchase","amount":25.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-16","postedDate":"2026-02-17","merchant":"Warm Spirit Spa","description":"SQ *WARM SPIRIT SPA 29 LINDSAY LANE HOT SPRINGS 24445 VA USA","rawCategory":"Other","txType":"Purchase","amount":275.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-16","postedDate":"2026-02-16","merchant":"Amtrak","description":"AMTRAK MOBILE 1 MASSACHUSETTS AVE, NW 2029063000 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":57.6,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-13","postedDate":"2026-02-14","merchant":"Wegmans Charlottes #12","description":"WEGMANS CHARLOTTES #12100 WEGMANS WAY CHARLOTTESVIL22902 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":432.05,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-14","postedDate":"2026-02-14","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-12","postedDate":"2026-02-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 614 17TH STREET NORTHWEST WASHINGTON 20508 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-12","postedDate":"2026-02-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-12","postedDate":"2026-02-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-12","postedDate":"2026-02-12","merchant":"Albemarle Baking Company","description":"SQ *ALBEMARLE BAKING C418 W MAIN ST CHARLOTTESVIL22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":7.84,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-11","postedDate":"2026-02-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-11","postedDate":"2026-02-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 513 CANNON HOB WASHINGTON 20515 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-11","postedDate":"2026-02-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-11","postedDate":"2026-02-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":42.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-11","postedDate":"2026-02-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-11","postedDate":"2026-02-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3147 14TH STREET NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":42.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3147 14TH STREET NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":36.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-11","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 614 17TH STREET NORTHWEST WASHINGTON 20508 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 614 17TH STREET NORTHWEST WASHINGTON 20508 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-10","postedDate":"2026-02-10","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-09","postedDate":"2026-02-10","merchant":"Prime Video *8g5e98ju3","description":"PRIME VIDEO *8G5E98JU3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":14.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-09","postedDate":"2026-02-10","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-09","postedDate":"2026-02-09","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-09","postedDate":"2026-02-09","merchant":"Spotify P3f3259c5a","description":"SPOTIFY P3F3259C5A 4 WORLD TRADE CENTER 150 GREENWICH STREET NEW YORK 10007 NY USA","rawCategory":"Utilities","txType":"Purchase","amount":11.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-08","postedDate":"2026-02-09","merchant":"Mac At Macys Pentagon","description":"MACY S PENTAGON CITY 1000 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":21.2,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-08","postedDate":"2026-02-09","merchant":"Target        00010769","description":"TARGET 000107693101 JEFFERSON DAVIS ALEXANDRIA 22305 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":77.38,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-07","postedDate":"2026-02-08","merchant":"Cooper Mill","description":"TST*COOPER MILL 10 DUKE STREET ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":69.83,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-07","postedDate":"2026-02-08","merchant":"Dreamwave Eu","description":"SP DREAMWAVE EU 312 W 2ND ST UNIT A2299 CASPER 82601 WY USA","rawCategory":"Other","txType":"Purchase","amount":42.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-07","postedDate":"2026-02-08","merchant":"Cavo","description":"SP CAVO 5830 E 2ND ST, STE 7000 #17063, CASPER, WYOMI CASPER 82609 WY USA","rawCategory":"Grocery","txType":"Purchase","amount":66.8,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-07","postedDate":"2026-02-07","merchant":"Albemarle Baking Company","description":"SQ *ALBEMARLE BAKING C418 W MAIN ST CHARLOTTESVIL22903 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":66.17,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-06","postedDate":"2026-02-07","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":39.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-06","postedDate":"2026-02-07","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-06","postedDate":"2026-02-06","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-05","postedDate":"2026-02-06","merchant":"Cvs/pharmacy #01394","description":"CVS/PHARMACY #01394 1636 BELLE VIEW BLVD ALEXANDRIA 22307 VA USA","rawCategory":"Other","txType":"Purchase","amount":93.37,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-05","postedDate":"2026-02-06","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-06","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":70.2,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-05","postedDate":"2026-02-06","merchant":"Starbucks 8007827282","description":"STARBUCKS 8007827282 2401 UTAH AVE S SEATTLE 98134 WA USA","rawCategory":"Restaurants","txType":"Purchase","amount":50.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-05","merchant":"Ls Revel Wine Bar","description":"LS REVEL WINE BAR 1600A,BELLE VIEW BOULEVARD ALEXANDRIA 22307 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":224.8,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-05","postedDate":"2026-02-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 4525 BRANDYWINE STREET NORTHWEST WASHINGTON 20016 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-05","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*HY0H392Q3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":25.23,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-05","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*VO3UU99K3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":157.95,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-05","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*VJ7I13QP3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":20.26,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-04","postedDate":"2026-02-04","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3147 14TH STREET NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-03","postedDate":"2026-02-04","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-03","merchant":"Safeway","description":"SAFEWAY 1019 1624 BELLE VIEW ALEXANDRIA 22307 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":48.27,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-03","postedDate":"2026-02-03","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":34.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-03","postedDate":"2026-02-03","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":96.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-03","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA 22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":178.06,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-03","merchant":"Carousel Checks","description":"CAROUSEL CHECKS 11152 SOUTHWEST HWY PALOS HILLS 60465 IL USA","rawCategory":"Other","txType":"Purchase","amount":65.04,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-03","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-02-02","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*VF9YU9BN3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":1228.37,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-02","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-02-02","merchant":"Macys 023 Tcn Sbux 565","description":"MACYS 023 TCN SBUX 5658000 TYSONS CORNER C MCLEAN 22102-4504VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":8.35,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-02-02","merchant":"Brooks Brothers 06030 8009 U Tysons Corner C Mclean 22102 Va Usa (return)","description":"BROOKS BROTHERS 06030 8009 U TYSONS CORNER C MCLEAN 22102 VA USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-273.06,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-02","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":2.73,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-01","postedDate":"2026-02-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-02-02","merchant":"Amtrak Mobile 1 Massachusetts Ave, Nw 2029063000 20001 Dc Usa (return)","description":"AMTRAK MOBILE 1 MASSACHUSETTS AVE, NW 2029063000 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-47.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-02-02","postedDate":"2026-02-02","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.94,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-02-02","merchant":"Mango","description":"MANGO 1961 CHAIN BRIDGE RD TYSONS 22102-4502VA USA","rawCategory":"Shopping","txType":"Purchase","amount":95.6,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-30","postedDate":"2026-02-02","merchant":"Id Of K Street","description":"ID OF K STREET 4700 EXCHANGE COURT, SUIT BOCA RATON 33431 FL USA","rawCategory":"Medical","txType":"Purchase","amount":191.95,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-02-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-31","postedDate":"2026-01-31","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-30","postedDate":"2026-01-30","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3147 14TH STREET NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-30","postedDate":"2026-01-30","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-30","postedDate":"2026-01-30","merchant":"Prime Video *l67n312b3","description":"PRIME VIDEO *L67N312B3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":9.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-30","postedDate":"2026-01-30","merchant":"Prime Video *e17802j33","description":"PRIME VIDEO *E17802J33440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":9.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-30","postedDate":"2026-01-30","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-29","postedDate":"2026-01-30","merchant":"Amtrak","description":"AMTRAK MOBILE 1 MASSACHUSETTS AVE, NW 2029063000 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":47.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-29","postedDate":"2026-01-30","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-29","postedDate":"2026-01-29","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-28","postedDate":"2026-01-29","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*284MQ5ML3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":52.62,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-28","postedDate":"2026-01-29","merchant":"Safeway","description":"SAFEWAY 1019 1624 BELLE VIEW ALEXANDRIA 22307 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":77.5,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-29","postedDate":"2026-01-29","merchant":"Amazon Prime","description":"AMAZON PRIME*CJ7NP0HX3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":2.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-28","postedDate":"2026-01-28","merchant":"tidal.com","description":"TIDAL.COM BRICKELL AVENUE, 18TH FLOOR 1450 MIAMI 33131 FL USA","rawCategory":"Other","txType":"Purchase","amount":16.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-27","postedDate":"2026-01-28","merchant":"Scheffres Laundry Service","description":"SCHEFFRES LAUNDRY SERV5016 HERZEL PL BELTSVILLE 207052008 MD USA","rawCategory":"Other","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-28","postedDate":"2026-01-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-28","postedDate":"2026-01-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":120.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-28","postedDate":"2026-01-28","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":39.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-27","postedDate":"2026-01-28","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-27","postedDate":"2026-01-27","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 513 CANNON HOB WASHINGTON 20515 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-27","postedDate":"2026-01-27","merchant":"Wf* Wayfair4577800942","description":"WF* WAYFAIR4577800942 4 COPLEY PLACE 7TH FLOOR BOSTON 02116 MA USA","rawCategory":"Other","txType":"Purchase","amount":247.44,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-26","postedDate":"2026-01-26","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-24","postedDate":"2026-01-25","merchant":"Safeway","description":"SAFEWAY 1019 1624 BELLE VIEW ALEXANDRIA 22307 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":13.03,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-24","postedDate":"2026-01-25","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA 22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":186.53,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-24","postedDate":"2026-01-25","merchant":"Nordstrom #0621","description":"NORDSTROM #0621 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":551.2,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-24","postedDate":"2026-01-25","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":6.15,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-23","postedDate":"2026-01-25","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":1148.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-24","postedDate":"2026-01-24","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":20.39,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-23","postedDate":"2026-01-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 600 H STREET SOUTHWEST WASHINGTON 20024 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-23","postedDate":"2026-01-24","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-21","postedDate":"2026-01-23","merchant":"Amtrak Mobile App 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-42.3,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-23","postedDate":"2026-01-23","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.42,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-22","postedDate":"2026-01-23","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-22","postedDate":"2026-01-22","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 513 CANNON HOB WASHINGTON 20515 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":30.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-22","postedDate":"2026-01-22","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 513 CANNON HOB WASHINGTON 20515 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":36.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-22","postedDate":"2026-01-22","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3147 14TH STREET NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-22","postedDate":"2026-01-22","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-21","postedDate":"2026-01-22","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-21","postedDate":"2026-01-22","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3147 14TH STREET NORTHWEST WASHINGTON 20010 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":42.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-21","postedDate":"2026-01-22","merchant":"poetryfashion.com","description":"POETRYFASHION.COM 184 WESTBOURNE GROVE LONDON W11 2RH GBR","rawCategory":"Shopping","txType":"Purchase","amount":265.61,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-21","postedDate":"2026-01-21","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 513 CANNON HOB WASHINGTON 20515 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-21","postedDate":"2026-01-21","merchant":"Netflix","description":"NETFLIX.COM 121 ALBRIGHT WAY LOS GATOS 95032 CA USA","rawCategory":"Utilities","txType":"Purchase","amount":24.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-21","merchant":"Pmusa 758044 Alexandri","description":"PMUSA 758044 ALEXANDRI1100 SPRING ST NW ATLANTA 30309 GA USA","rawCategory":"Other","txType":"Purchase","amount":1.45,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-21","merchant":"Pmusa 758044 Alexandri","description":"PMUSA 758044 ALEXANDRI1100 SPRING ST NW ATLANTA 30309 GA USA","rawCategory":"Other","txType":"Purchase","amount":4.2,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-20","postedDate":"2026-01-21","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-20","postedDate":"2026-01-21","merchant":"Hp *instant Ink","description":"HP *INSTANT INK 3400 HANOVER ST PALO ALTO 94304 CA USA","rawCategory":"Other","txType":"Purchase","amount":18.42,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-20","postedDate":"2026-01-21","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-20","postedDate":"2026-01-20","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-20","merchant":"Sa_support.harnafit Georgiou Christoforou 8, 1st Floor Nicosia 2012 Cyp (dispute Reversal)","description":"SA_SUPPORT.HARNAFIT GEORGIOU CHRISTOFOROU 8, 1ST FLOOR NICOSIA 2012 CYP (DISPUTE REVERSAL)","rawCategory":"Debit","txType":"Debit","amount":9.99,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-18","postedDate":"2026-01-20","merchant":"apple.com/us","description":"APPLE.COM/US ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":1588.94,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-20","merchant":"Adas On The River","description":"TST*ADAS ON THE RIVER 3 PIONEER MILL WAY ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":184.47,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-20","merchant":"Nytimes.com","description":"NYTIMES* 620 8TH AVE NEW YORK 10018 NY USA","rawCategory":"Other","txType":"Purchase","amount":25.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-19","merchant":"Sa_support.harnafit Georgiou Christoforou 8, 1st Floor Nicosia 2012 Cyp (return)","description":"SA_SUPPORT.HARNAFIT GEORGIOU CHRISTOFOROU 8, 1ST FLOOR NICOSIA 2012 CYP (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-9.99,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-19","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.2,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-19","merchant":"Miamiskin8448298772","description":"MIAMISKIN8448298772 401 EAST LAS OLAS BOULEVARD 130-250 FORT LAUDERDA33301 FL USA","rawCategory":"Other","txType":"Purchase","amount":189.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-18","postedDate":"2026-01-19","merchant":"Totalwine 221 Pos","description":"TOTALWINE 221 POS 3901-3915 RICHMOND HWY ALEXANDRIA 22305 VA USA","rawCategory":"Alcohol","txType":"Purchase","amount":66.77,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-19","postedDate":"2026-01-19","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-2000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-18","postedDate":"2026-01-19","merchant":"Nord Marketplace","description":"TST* NORD MARKETPLACE 1400 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":67.73,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-18","postedDate":"2026-01-19","merchant":"Mac At Macys Pentagon","description":"MACY S PENTAGON CITY 1000 S HAYES ST ARLINGTON 22202 VA USA","rawCategory":"Shopping","txType":"Purchase","amount":116.6,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-17","postedDate":"2026-01-18","merchant":"Rsw Keylime Bistro","description":"RSW KEYLIME BISTRO RSW AIRPORT 11000 TERMINAL ACCESS RD FORT MYERS 33913 FL USA","rawCategory":"Restaurants","txType":"Purchase","amount":43.24,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-18","postedDate":"2026-01-18","merchant":"Loccitane","description":"LOCCITANE 1100 SOUTH HAYES ST. #R-10 ARLINGTON 22202 VA USA","rawCategory":"Other","txType":"Purchase","amount":27.56,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-18","postedDate":"2026-01-18","merchant":"Apple Pentagon City","description":"MAC PENTAGON CITY 1100 SOUTH HAYES STREET ARLINGTON 22202 VA USA","rawCategory":"Other","txType":"Purchase","amount":114.49,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-18","merchant":"Sa_support.harnafit Georgiou Christoforou 8, 1st Floor Nicosia 2012 Cyp (dispute Credit)","description":"SA_SUPPORT.HARNAFIT GEORGIOU CHRISTOFOROU 8, 1ST FLOOR NICOSIA 2012 CYP (DISPUTE CREDIT)","rawCategory":"Credit","txType":"Credit","amount":-9.99,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-16","postedDate":"2026-01-17","merchant":"Ulta #283","description":"ULTA #283 9100 STRADA PL.-STE.2105 NAPLES 34108 FL USA","rawCategory":"Other","txType":"Purchase","amount":273.47,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-17","merchant":"sa_support.harnafit","description":"SA_SUPPORT.HARNAFIT GEORGIOU CHRISTOFOROU 8, 1ST FLOOR NICOSIA 2012 CYP","rawCategory":"Other","txType":"Purchase","amount":9.99,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-17","postedDate":"2026-01-17","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-15","postedDate":"2026-01-17","merchant":"Laplaya Beach & Golf R","description":"LAPLAYA BEACH & GOLF R9891 GULF SHORE DR NAPLES 34108 FL USA","rawCategory":"Restaurants","txType":"Purchase","amount":51.34,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-17","postedDate":"2026-01-17","merchant":"Uber   *trip","description":"UBER *TRIP 706 MISSION ST 8005928996 94105 CA USA","rawCategory":"Transportation","txType":"Purchase","amount":10.64,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-16","postedDate":"2026-01-17","merchant":"Uber   *trip","description":"UBER *TRIP 706 MISSION ST 8005928996 94105 CA USA","rawCategory":"Transportation","txType":"Purchase","amount":70.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-17","postedDate":"2026-01-17","merchant":"Uber   *trip","description":"UBER *TRIP 706 MISSION ST 8005928996 94105 CA USA","rawCategory":"Transportation","txType":"Purchase","amount":10.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-16","postedDate":"2026-01-17","merchant":"Rocco's Taco - Na","description":"TST* ROCCO'S TACO - NA9123 STRADA PL UNIT 7135 NAPLES 34108 FL USA","rawCategory":"Restaurants","txType":"Purchase","amount":110.85,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-16","postedDate":"2026-01-17","merchant":"Simply Natural","description":"SIMPLY NATURAL 9115 STRADA PL UNIT 5140 NAPLES 34108 FL USA","rawCategory":"Shopping","txType":"Purchase","amount":718.68,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-16","postedDate":"2026-01-16","merchant":"Narrative Mercato","description":"SQ *NARRATIVE MERCATO 9106 STRADA PL NAPLES 34108 FL USA","rawCategory":"Restaurants","txType":"Purchase","amount":24.99,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-15","postedDate":"2026-01-16","merchant":"LaPlaya Beach & Golf Resort","description":"LAPLAYA BEACH GIFT SHO9891 GULF SHORE DR NAPLES 34108 FL USA","rawCategory":"Other","txType":"Purchase","amount":5.3,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-15","postedDate":"2026-01-15","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-13","postedDate":"2026-01-15","merchant":"Uber   *trip","description":"UBER *TRIP 706 MISSION ST 8005928996 94105 CA USA","rawCategory":"Transportation","txType":"Purchase","amount":77.98,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-14","postedDate":"2026-01-14","merchant":"Aa Dca Curb","description":"SQ *AA DCA CURB 2401 SMITH BLVD ARLINGTON 22202 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":4.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-14","postedDate":"2026-01-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-13","postedDate":"2026-01-14","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-13","postedDate":"2026-01-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 101 THOMAS ROAD SOUTHWEST WASHINGTON 20373 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-13","postedDate":"2026-01-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 101 THOMAS ROAD SOUTHWEST WASHINGTON 20373 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-13","merchant":"Cvs/pharmacy #01394","description":"CVS/PHARMACY #01394 1636 BELLE VIEW BLVD ALEXANDRIA 22307 VA USA","rawCategory":"Other","txType":"Purchase","amount":42.56,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-13","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-11","postedDate":"2026-01-13","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":42.3,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-12","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3103 36TH STREET NORTHWEST WASHINGTON 20016 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-12","postedDate":"2026-01-12","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-3000.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-09","postedDate":"2026-01-10","merchant":"Sa-sah Salon Llc","description":"SA-SAH SALON LLC 625 S WASHINGTON ST ALEXANDRIA 22314 VA USA","rawCategory":"Other","txType":"Purchase","amount":180.0,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-09","postedDate":"2026-01-10","merchant":"River Bend Bistro","description":"RIVER BEND BISTRO 7966 FT HUNT RD ALEXANDRIA 22308 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":128.52,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-09","postedDate":"2026-01-09","merchant":"Spotify P3e3f20043","description":"SPOTIFY P3E3F20043 4 WORLD TRADE CENTER 150 GREENWICH STREET NEW YORK 10007 NY USA","rawCategory":"Utilities","txType":"Purchase","amount":11.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-08","postedDate":"2026-01-09","merchant":"Starr - The Occid","description":"TST* STARR - THE OCCID1475 PENNSYLVANIA AVE NW WASHINGTON 20004 DC USA","rawCategory":"Restaurants","txType":"Purchase","amount":63.15,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-08","postedDate":"2026-01-08","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-07","postedDate":"2026-01-08","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-07","postedDate":"2026-01-08","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 101 THOMAS ROAD SOUTHWEST WASHINGTON 20373 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":54.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-07","postedDate":"2026-01-07","merchant":"Apple.com/bill One Apple Park Way Cupertino 95014 Ca Usa (return)","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-3.48,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-07","postedDate":"2026-01-07","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":0.1,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-07","postedDate":"2026-01-07","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 3103 36TH STREET NORTHWEST WASHINGTON 20016 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-07","postedDate":"2026-01-07","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":39.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-06","postedDate":"2026-01-06","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-06","postedDate":"2026-01-06","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 1204 S WASHINGTON ST. ALEXANDRIA 22314 VA USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-04","postedDate":"2026-01-06","merchant":"Landini Brothers","description":"LANDINI BROTHERS 115 KING ST ALEXANDRIA 22314 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":196.89,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-06","merchant":"River Bend Bistro","description":"RIVER BEND BISTRO 7966 FT HUNT RD ALEXANDRIA 22308 VA USA","rawCategory":"Restaurants","txType":"Purchase","amount":126.39,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-06","merchant":"AMERICAN AIRLINES","description":"AMERICAN 1 SKYVIEW DRIVE FORT WORTH 76155 TX USA","rawCategory":"Airlines","txType":"Purchase","amount":252.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-06","merchant":"AMERICAN AIRLINES","description":"AMERICAN 1 SKYVIEW DRIVE FORT WORTH 76155 TX USA","rawCategory":"Airlines","txType":"Purchase","amount":252.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-05","merchant":"Nezar Mansy","description":"SQ *NEZAR MANSY 101 THOMAS ROAD SOUTHWEST WASHINGTON 20373 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":90.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-05","merchant":"Starbucks 8007827282","description":"STARBUCKS 8007827282 2401 UTAH AVE S SEATTLE 98134 WA USA","rawCategory":"Restaurants","txType":"Purchase","amount":50.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-30","postedDate":"2026-01-05","merchant":"The Cover Store","description":"SP COVERSTORE.COM 4488 PLANO PARKWAY CARROLLTON 75010 TX USA","rawCategory":"Other","txType":"Purchase","amount":62.81,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-05","merchant":"eBay","description":"EBAY O*12-14057-19807 2535 NORTH FIRST STREET SAN JOSE 95131 CA USA","rawCategory":"Shopping","txType":"Purchase","amount":69.97,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-05","postedDate":"2026-01-05","merchant":"Daily Cash Adjustment","description":"DAILY CASH ADJUSTMENT","rawCategory":"Debit","txType":"Debit","amount":1.22,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-03","postedDate":"2026-01-05","merchant":"Amtrak Mobile App 1 Massachusetts Ave Nw Washington 20001 Dc Usa (return)","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA (RETURN)","rawCategory":"Credit","txType":"Credit","amount":-122.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-04","postedDate":"2026-01-05","merchant":"Marathon 207944","description":"MARATHON 207944 101 CRAIG STREET CRAIGSVILLE 24430 VA USA","rawCategory":"Gas","txType":"Purchase","amount":35.65,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-03","postedDate":"2026-01-04","merchant":"Saatva Saatva","description":"SAATVA 19-02 WHITESTONE EXPRESSWAY, SUITE 201 WHITESTONE 11357 NY USA","rawCategory":"Other","txType":"Purchase","amount":1963.28,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-02","postedDate":"2026-01-03","merchant":"Cedar Creek Gallery & Pottery","description":"SP CEDAR CREEK GALLE 1150 FLEMING ROAD CREEDMOOR 27522 NC USA","rawCategory":"Other","txType":"Purchase","amount":83.77,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-02","postedDate":"2026-01-03","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":3.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-28","postedDate":"2026-01-03","merchant":"Brooks Brothers","description":"BROOKS BROTHERS 125 CHUBB AVENUE - 5TH FLOOR LYNDHURST 07071 NJ USA","rawCategory":"Shopping","txType":"Purchase","amount":175.95,"person":"Brenda Otterson"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-30","postedDate":"2026-01-02","merchant":"Amazon Marketplace","description":"AMAZON MKTPL*GK8V735X3440 TERRY AVE N SEATTLE 98109 WA USA","rawCategory":"Other","txType":"Purchase","amount":249.89,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-02","postedDate":"2026-01-02","merchant":"eBay","description":"EBAY O*20-14033-93689 2535 NORTH FIRST STREET SAN JOSE 95131 CA USA","rawCategory":"Shopping","txType":"Purchase","amount":19.14,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-01","postedDate":"2026-01-02","merchant":"AMERICAN AIRLINES","description":"AMERICAN 4000 E SKY HARBOR BL PHOENIX 85034-3802AZ USA","rawCategory":"Airlines","txType":"Purchase","amount":479.17,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-01","postedDate":"2026-01-02","merchant":"Valley Supermarket","description":"VALLEY SUPERMARKET 9110 SAM SNEAD HWY HOT SPRINGS 24445 VA USA","rawCategory":"Grocery","txType":"Purchase","amount":48.33,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-31","postedDate":"2026-01-02","merchant":"Amtrak","description":"AMTRAK MOBILE APP 1 MASSACHUSETTS AVE NW WASHINGTON 20001 DC USA","rawCategory":"Transportation","txType":"Purchase","amount":122.4,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-01","postedDate":"2026-01-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-31","postedDate":"2026-01-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":19.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-31","postedDate":"2026-01-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":0.99,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2025-12-31","postedDate":"2026-01-02","merchant":"Apple Services","description":"APPLE.COM/BILL ONE APPLE PARK WAY CUPERTINO 95014 CA USA","rawCategory":"Other","txType":"Purchase","amount":99.0,"person":"Michael Vaughan"},{"source":"Apple Card","account":"Apple Card","date":"2026-01-01","postedDate":"2026-01-01","merchant":"Ach Deposit Internet Transfer From Account Ending In 1717","description":"ACH DEPOSIT INTERNET TRANSFER FROM ACCOUNT ENDING IN 1717","rawCategory":"Payment","txType":"Payment","amount":-4000.0,"person":"Michael Vaughan"}]
-  }
-};
-
-function fmtMoney(n) {
-  const val = Number(n || 0);
-  return val.toLocaleString("en-US", {style:"currency", currency:"USD"});
-}
 function save() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(APP.data));
-}
-function load() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) {
-    try { APP.data = JSON.parse(raw); } catch(e){}
-  }
-  if (!APP.data.rules || !APP.data.rules.length) APP.data.rules = structuredClone(APP.defaults.rules);
-}
-function normalizeText(s) {
-  return String(s || "").toLowerCase().replace(/\s+/g," ").trim();
-}
-function parseAmount(v) {
-  if (v === null || v === undefined || v === "") return 0;
-  let s = String(v).trim().replace(/[$,]/g,"");
-  if (/^\(.*\)$/.test(s)) s = "-" + s.slice(1,-1);
-  const n = Number(s);
-  return isFinite(n) ? n : 0;
-}
-function monthKey(dateStr) {
-  if (!dateStr) return "";
-  return dateStr.slice(0,7);
-}
-function detectSource(headers) {
-  const set = new Set(headers.map(h => normalizeText(h)));
-  if (set.has("transaction date") && set.has("amount (usd)") && set.has("merchant")) return "Apple Card";
-  if ((set.has("date") || set.has("transaction date")) && set.has("description") && (set.has("amount") || set.has("debit") || set.has("credit"))) {
-    if ([...set].some(h => h.includes("amex") || h.includes("appears on your statement as"))) return "American Express";
-    return "Burke & Herbert";
-  }
-  if (set.has("date") && set.has("description") && set.has("amount")) return "Unknown CSV";
-  return "Unknown CSV";
-}
-function csvRows(text) {
-  const rows = [];
-  let row = [], cur = "", inQuotes = false;
-  for (let i=0;i<text.length;i++) {
-    const ch = text[i];
-    if (ch === '"') {
-      if (inQuotes && text[i+1] === '"') { cur += '"'; i++; }
-      else inQuotes = !inQuotes;
-    } else if (ch === "," && !inQuotes) {
-      row.push(cur); cur = "";
-    } else if ((ch === "\n" || ch === "\r") && !inQuotes) {
-      if (ch === "\r" && text[i+1] === "\n") i++;
-      row.push(cur); rows.push(row); row = []; cur = "";
-    } else cur += ch;
-  }
-  row.push(cur); rows.push(row);
-  return rows.filter(r => r.some(c => String(c).trim() !== ""));
-}
-function mapRowToTx(source, headerIndex, row) {
-  const get = (...names) => {
-    for (const n of names) {
-      const idx = headerIndex[normalizeText(n)];
-      if (idx !== undefined) return row[idx] ?? "";
-    }
-    return "";
-  };
-  if (source === "Apple Card") {
-    return {
-      source,
-      account:"Apple Card",
-      date: toISO(get("Transaction Date")),
-      postedDate: toISO(get("Clearing Date")),
-      merchant: get("Merchant"),
-      description: get("Description"),
-      rawCategory: get("Category"),
-      txType: get("Type"),
-      amount: parseAmount(get("Amount (USD)")),
-      person: get("Purchased By")
-    };
-  }
-  const desc = get("Description","Merchant","Details");
-  const merchant = get("Merchant","Appears On Your Statement As","Description") || desc;
-  let amount = 0;
-  const rawAmount = get("Amount","Amount (USD)");
-  if (rawAmount !== "") amount = parseAmount(rawAmount);
-  else {
-    const debit = parseAmount(get("Debit","Withdrawals","Outflow"));
-    const credit = parseAmount(get("Credit","Deposits","Inflow"));
-    amount = debit !== 0 ? Math.abs(debit) : (credit !== 0 ? -Math.abs(credit) : 0);
-  }
-  return {
-    source,
-    account: source === "American Express" ? "American Express" : "Burke & Herbert",
-    date: toISO(get("Date","Transaction Date","Posted Date")),
-    postedDate: toISO(get("Posted Date","Clearing Date","Date")),
-    merchant,
-    description: desc,
-    rawCategory: get("Category"),
-    txType: get("Type"),
-    amount,
-    person: get("Card Member","Purchased By","User")
-  };
-}
-function toISO(value) {
-  const s = String(value || "").trim();
-  if (!s) return "";
-  const d = new Date(s);
-  if (!isNaN(d)) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,"0");
-    const da = String(d.getDate()).padStart(2,"0");
-    return `${y}-${m}-${da}`;
-  }
-  const m = s.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
-  if (m) {
-    let year = m[3].length === 2 ? "20" + m[3] : m[3];
-    return `${year}-${String(m[1]).padStart(2,"0")}-${String(m[2]).padStart(2,"0")}`;
-  }
-  return s;
-}
-function ruleMatchText(tx) {
-  return normalizeText(`${tx.merchant} ${tx.description} ${tx.rawCategory} ${tx.txType}`);
-}
-function classify(tx) {
-  const text = ruleMatchText(tx);
-  const amount = Math.abs(Number(tx.amount || 0));
-  const rawCat = normalizeText(tx.rawCategory);
-  const type = normalizeText(tx.txType);
-  let bucket = "core";
-  let category = tx.rawCategory || "Uncategorized";
-  let note = "";
 
-  if (type.includes("payment") || type.includes("credit") || type.includes("refund")) {
-    bucket = "excluded";
-    category = "Payment/credit";
-  }
-  if (type.includes("debit") && text.includes("payment")) {
-    bucket = "excluded";
-    category = "Payment/transfer";
-  }
-  if (/payment|transfer|autopay|ach payment|online payment/.test(text)) {
-    bucket = "excluded";
-    category = "Payment/transfer";
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
 
-  if (["transportation","airlines","travel","govt-services-parking"].includes(rawCat)) {
-    bucket = "discretionary";
-    category = "Travel";
-  }
-  if (["restaurants","shopping","alcohol"].includes(rawCat) && bucket === "core") {
-    bucket = "discretionary";
-    category = tx.rawCategory;
-  }
-  if (["medical","grocery","utilities","gas"].includes(rawCat) && bucket === "core") {
-    bucket = "core";
-    category = tx.rawCategory;
-  }
+}
 
-  for (const rule of APP.data.rules) {
-    if (!rule.match) continue;
-    if (text.includes(normalizeText(rule.match))) {
-      bucket = rule.bucket;
-      if (rule.category) category = rule.category;
-      if (rule.note) note = rule.note;
-    }
-  }
+function importCSV() {
 
-  return {...tx, amount, signedAmount:Number(tx.amount||0), bucket, category, note};
-}
-function dedupeAndMerge(newTxs) {
-  const existing = new Set(APP.data.transactions.map(tx => [
-    tx.source, tx.account, tx.date, tx.merchant, tx.description, Number(tx.amount).toFixed(2)
-  ].join("|")));
-  let added = 0;
-  for (const tx of newTxs) {
-    const key = [tx.source, tx.account, tx.date, tx.merchant, tx.description, Number(tx.amount).toFixed(2)].join("|");
-    if (!existing.has(key)) {
-      APP.data.transactions.push(tx);
-      existing.add(key);
-      added++;
-    }
-  }
-  return added;
-}
-function applyFilters() {
-  let txs = APP.data.transactions.map(classify).sort((a,b) => (b.date||"").localeCompare(a.date||""));
-  const oneMonth = document.getElementById("monthFilter").value;
-  const period = document.getElementById("periodSelect").value;
-  if (oneMonth) {
-    txs = txs.filter(tx => monthKey(tx.date) === oneMonth);
-  } else if (period !== "all") {
-    const months = Number(period);
-    const now = new Date();
-    const cutoff = new Date(now.getFullYear(), now.getMonth() - (months-1), 1);
-    txs = txs.filter(tx => tx.date && new Date(tx.date) >= cutoff);
-  }
-  return txs;
-}
-function renderDashboard() {
-  const txs = applyFilters();
-  const core = txs.filter(t => t.bucket === "core").reduce((s,t)=>s+t.amount,0);
-  const disc = txs.filter(t => t.bucket === "discretionary").reduce((s,t)=>s+t.amount,0);
-  const reimb = txs.filter(t => t.bucket === "reimbursable").reduce((s,t)=>s+t.amount,0);
-  const capital = txs.filter(t => t.bucket === "capital").reduce((s,t)=>s+t.amount,0);
-  document.getElementById("kpiCore").textContent = fmtMoney(core);
-  document.getElementById("kpiDisc").textContent = fmtMoney(disc);
-  document.getElementById("kpiReimb").textContent = fmtMoney(reimb);
-  document.getElementById("kpiCapital").textContent = fmtMoney(capital);
-  document.getElementById("trueSpend").textContent = fmtMoney(core + disc);
+  document.getElementById("fileInput").click();
 
-  const monthly = {};
-  for (const tx of txs) {
-    const m = monthKey(tx.date);
-    if (!m) continue;
-    monthly[m] ||= {core:0, discretionary:0, reimbursable:0, capital:0, excluded:0};
-    monthly[m][tx.bucket] += tx.amount;
-  }
-  const months = Object.keys(monthly).sort();
-  const activeMonths = months.length || 1;
-  document.getElementById("avgCore").textContent = fmtMoney(core / activeMonths);
-  document.getElementById("avgDisc").textContent = fmtMoney(disc / activeMonths);
-  document.getElementById("maxReimb").textContent = fmtMoney(Math.max(0,...months.map(m=>monthly[m].reimbursable||0)));
-  document.getElementById("maxCapital").textContent = fmtMoney(Math.max(0,...months.map(m=>monthly[m].capital||0)));
-  document.getElementById("txCount").textContent = txs.length.toLocaleString();
+}
 
-  const chart = document.getElementById("monthlyChart");
-  chart.innerHTML = "";
-  const maxTotal = Math.max(1,...months.map(m => monthly[m].core + monthly[m].discretionary + monthly[m].capital + monthly[m].reimbursable));
-  for (const m of months.slice(-12)) {
-    const block = document.createElement("div");
-    block.className = "barwrap";
-    ["reimbursable","capital","discretionary","core"].forEach(bucket => {
-      const bar = document.createElement("div");
-      bar.className = "bar " + (bucket==="discretionary"?"disc":bucket==="reimbursable"?"reimb":bucket);
-      const val = monthly[m][bucket] || 0;
-      bar.style.height = `${Math.max(2, 220 * (val/maxTotal))}px`;
-      bar.title = `${m} ${bucket}: ${fmtMoney(val)}`;
-      block.appendChild(bar);
-    });
-    const label = document.createElement("div");
-    label.className = "axislabel";
-    label.textContent = m.slice(2);
-    block.appendChild(label);
-    chart.appendChild(block);
-  }
+function handleFile(e) {
 
-  const spendTx = txs.filter(t => t.bucket === "core" || t.bucket === "discretionary");
-  const merchants = {};
-  for (const tx of spendTx) {
-    const k = tx.merchant || tx.description || "Unknown";
-    merchants[k] ||= {amount:0, bucket:tx.bucket};
-    merchants[k].amount += tx.amount;
-  }
-  const merchRows = Object.entries(merchants).sort((a,b)=>b[1].amount-a[1].amount).slice(0,12);
-  document.getElementById("merchantTable").innerHTML = merchRows.map(([name,meta]) =>
-    `<tr><td>${escapeHtml(name)}</td><td><span class="badge ${meta.bucket==="core"?"core":"disc"}">${meta.bucket}</span></td><td class="amount">${fmtMoney(meta.amount)}</td></tr>`
-  ).join("") || `<tr><td colspan="3" class="note">No spending transactions in this period.</td></tr>`;
-
-  const accounts = {};
-  for (const tx of txs) {
-    accounts[tx.account] ||= {core:0, discretionary:0, reimbursable:0, total:0};
-    if (tx.bucket in accounts[tx.account]) accounts[tx.account][tx.bucket] += tx.amount;
-    accounts[tx.account].total += tx.amount;
-  }
-  document.getElementById("accountTable").innerHTML = Object.entries(accounts).map(([acct,a]) =>
-    `<tr><td>${escapeHtml(acct)}</td><td class="amount">${fmtMoney(a.core)}</td><td class="amount">${fmtMoney(a.discretionary)}</td><td class="amount">${fmtMoney(a.reimbursable)}</td><td class="amount">${fmtMoney(a.total)}</td></tr>`
-  ).join("") || `<tr><td colspan="5" class="note">No imported accounts yet.</td></tr>`;
-
-  let insight = "No data yet.";
-  if (months.length) {
-    const coreByMonth = months.map(m => monthly[m].core);
-    const avg = coreByMonth.reduce((s,v)=>s+v,0)/months.length;
-    const latest = monthly[months[months.length-1]].core || 0;
-    const trend = latest > avg * 1.15 ? "above" : latest < avg * 0.85 ? "below" : "near";
-    insight = `Your current imported data shows true spending of ${fmtMoney(core + disc)}. Core spending is ${trend} your average monthly core level. Reimbursables and capital purchases are separated, so the baseline number is cleaner than the bank-issued totals.`;
-  }
-  document.getElementById("insightText").textContent = insight;
-}
-function renderImports() {
-  const grouped = {};
-  for (const tx of APP.data.transactions) {
-    grouped[tx.source] ||= {count:0, min:null, max:null, accounts:new Set()};
-    const g = grouped[tx.source];
-    g.count++;
-    if (tx.date && (!g.min || tx.date < g.min)) g.min = tx.date;
-    if (tx.date && (!g.max || tx.date > g.max)) g.max = tx.date;
-    g.accounts.add(tx.account);
-  }
-  const body = document.getElementById("sourceSummary");
-  body.innerHTML = Object.entries(grouped).map(([src,g]) =>
-    `<tr><td>${escapeHtml(src)}</td><td>${g.count}</td><td>${g.min || ""}</td><td>${g.max || ""}</td><td>${escapeHtml([...g.accounts].join(", "))}</td></tr>`
-  ).join("") || `<tr><td colspan="5" class="note">No data imported yet.</td></tr>`;
-}
-function renderRules() {
-  const body = document.getElementById("rulesBody");
-  body.innerHTML = APP.data.rules.map((r, idx) => `
-    <tr>
-      <td>${escapeHtml(r.match)}</td>
-      <td><span class="badge ${bucketClass(r.bucket)}">${r.bucket}</span></td>
-      <td>${escapeHtml(r.category || "")}</td>
-      <td>${escapeHtml(r.note || "")}</td>
-      <td><button class="smallbtn" onclick="deleteRule(${idx})">Delete</button></td>
-    </tr>
-  `).join("");
-}
-function bucketClass(bucket) {
-  return bucket === "core" ? "core" : bucket === "discretionary" ? "disc" : bucket === "reimbursable" ? "reimb" : bucket === "capital" ? "capital" : "excluded";
-}
-function renderTransactions() {
-  const txs = APP.data.transactions.map(classify).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
-  const search = normalizeText(document.getElementById("searchTx").value);
-  const bucket = document.getElementById("bucketFilter").value;
-  const account = document.getElementById("accountFilter").value;
-  const filtered = txs.filter(tx => {
-    const hit = !search || normalizeText(`${tx.merchant} ${tx.description}`).includes(search);
-    return hit && (!bucket || tx.bucket === bucket) && (!account || tx.account === account);
-  });
-  const body = document.getElementById("txTable");
-  body.innerHTML = filtered.slice(0,500).map(tx => `
-    <tr>
-      <td>${escapeHtml(tx.date)}</td>
-      <td>${escapeHtml(tx.merchant || tx.description || "")}</td>
-      <td>${escapeHtml(tx.account)}</td>
-      <td><span class="badge ${bucketClass(tx.bucket)}">${tx.bucket}</span></td>
-      <td>${escapeHtml(tx.category || "")}</td>
-      <td>${escapeHtml(tx.person || "")}</td>
-      <td class="amount">${fmtMoney(tx.amount)}</td>
-    </tr>
-  `).join("") || `<tr><td colspan="7" class="note">No matching transactions.</td></tr>`;
-  const acctSel = document.getElementById("accountFilter");
-  const accounts = [...new Set(APP.data.transactions.map(t => t.account))].sort();
-  const current = acctSel.value;
-  acctSel.innerHTML = `<option value="">All accounts</option>` + accounts.map(a => `<option value="${escapeAttr(a)}">${escapeHtml(a)}</option>`).join("");
-  acctSel.value = accounts.includes(current) ? current : "";
-}
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
-}
-function escapeAttr(s) { return escapeHtml(s).replace(/'/g,"&#39;"); }
-function deleteRule(idx) {
-  APP.data.rules.splice(idx,1); save(); renderAll();
-}
-async function importCsvFiles(files) {
-  let totalAdded = 0, messages = [];
-  for (const file of files) {
-    const text = await file.text();
-    const rows = csvRows(text);
-    if (!rows.length) continue;
-    const headers = rows[0];
-    const headerIndex = {};
-    headers.forEach((h,i) => headerIndex[normalizeText(h)] = i);
-    const source = detectSource(headers);
-    const txs = rows.slice(1).map(r => mapRowToTx(source, headerIndex, r)).filter(tx => tx.date && tx.amount !== 0);
-    const added = dedupeAndMerge(txs);
-    totalAdded += added;
-    messages.push(`${file.name} → ${source}: ${added} new transactions`);
-  }
-  save(); renderAll();
-  document.getElementById("importStatus").innerHTML = messages.join("<br>") || "No importable rows found.";
-}
-function loadDemoApple() {
-  const added = dedupeAndMerge(APP.defaults.demoApple);
-  APP.data.loadedDemoApple = true;
-  save(); renderAll();
-  document.getElementById("importStatus").textContent = `Apple Card demo data loaded: ${added} transactions added.`;
-}
-function exportBackup() {
-  const blob = new Blob([JSON.stringify(APP.data,null,2)], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "aletheia-spend-control-backup.json";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function resetAll() {
-  if (!confirm("Delete all imported data and rules from this browser?")) return;
-  APP.data = {transactions:[], rules: structuredClone(APP.defaults.rules), loadedDemoApple:false};
-  save(); renderAll();
-}
-function renderAll() {
-  renderDashboard();
-  renderImports();
-  renderRules();
-  renderTransactions();
-}
-document.querySelectorAll(".tabbtn").forEach(btn => btn.addEventListener("click", () => {
-  document.querySelectorAll(".tabbtn").forEach(b => b.classList.remove("active"));
-  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-  btn.classList.add("active");
-  document.getElementById(btn.dataset.panel).classList.add("active");
-}));
-document.getElementById("csvInput").addEventListener("change", e => importCsvFiles([...e.target.files]));
-document.getElementById("loadDemoApple").addEventListener("click", loadDemoApple);
-document.getElementById("exportBackup").addEventListener("click", exportBackup);
-document.getElementById("importBackup").addEventListener("change", async e => {
   const file = e.target.files[0];
-  if (!file) return;
-  const raw = JSON.parse(await file.text());
-  APP.data = raw; save(); renderAll();
-});
-document.getElementById("resetAll").addEventListener("click", resetAll);
-document.getElementById("addRule").addEventListener("click", () => {
-  const match = document.getElementById("newMatch").value.trim();
-  if (!match) return;
-  APP.data.rules.push({
-    match,
-    bucket: document.getElementById("newBucket").value,
-    category: document.getElementById("newCategory").value.trim(),
-    note: document.getElementById("newNote").value.trim()
-  });
-  document.getElementById("newMatch").value = "";
-  document.getElementById("newCategory").value = "";
-  document.getElementById("newNote").value = "";
-  save(); renderAll();
-});
-["periodSelect","monthFilter","searchTx","bucketFilter","accountFilter"].forEach(id => {
-  document.getElementById(id).addEventListener("input", renderAll);
-  document.getElementById(id).addEventListener("change", renderAll);
-});
-document.getElementById("clearMonth").addEventListener("click", () => {
-  document.getElementById("monthFilter").value = "";
-  renderAll();
-});
-load();
-if (!APP.data.transactions.length) {
-  APP.data.rules = structuredClone(APP.defaults.rules);
-  APP.data.transactions = structuredClone(APP.defaults.demoApple);
-  APP.data.loadedDemoApple = true;
-  save();
-}
-renderAll();
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-  });
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(evt) {
+
+    try {
+
+      parseCSV(evt.target.result);
+
+    } catch (err) {
+
+      alert("This file format was not recognized.");
+
+      console.error(err);
+
+    }
+
+  };
+
+  reader.readAsText(file);
+
 }
+
+function splitCSVLine(line) {
+
+  const result = [];
+
+  let current = "";
+
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+
+    const ch = line[i];
+
+    const next = line[i + 1];
+
+    if (ch === '"') {
+
+      if (inQuotes && next === '"') {
+
+        current += '"';
+
+        i++;
+
+      } else {
+
+        inQuotes = !inQuotes;
+
+      }
+
+    } else if (ch === "," && !inQuotes) {
+
+      result.push(current.trim());
+
+      current = "";
+
+    } else {
+
+      current += ch;
+
+    }
+
+  }
+
+  result.push(current.trim());
+
+  return result;
+
+}
+
+function cleanValue(v) {
+
+  if (v == null) return "";
+
+  return String(v).replace(/^"|"$/g, "").trim();
+
+}
+
+function parseMoney(v) {
+
+  if (v == null) return NaN;
+
+  let s = String(v).trim();
+
+  if (!s) return NaN;
+
+  s = s.replace(/\$/g, "").replace(/,/g, "").trim();
+
+  if (s.startsWith("(") && s.endsWith(")")) {
+
+    s = "-" + s.slice(1, -1);
+
+  }
+
+  return parseFloat(s);
+
+}
+
+function findHeaderIndex(headers, names) {
+
+  const lowered = headers.map(h => cleanValue(h).toLowerCase());
+
+  for (const name of names) {
+
+    const idx = lowered.indexOf(name);
+
+    if (idx !== -1) return idx;
+
+  }
+
+  return -1;
+
+}
+
+function detectAccountFromFileName(name) {
+
+  const n = (name || "").toLowerCase();
+
+  if (n.includes("apple")) return "Apple Card";
+
+  if (n.includes("amex") || n.includes("american express")) return "AmEx";
+
+  if (n.includes("burke") || n.includes("herbert") || n.includes("checking")) return "Burke & Herbert";
+
+  return "Bank";
+
+}
+
+function parseCSV(text) {
+
+  const rawLines = text.replace(/\r/g, "").split("\n").filter(line => line.trim() !== "");
+
+  if (rawLines.length < 2) {
+
+    alert("The file appears empty.");
+
+    return;
+
+  }
+
+  const rows = rawLines.map(splitCSVLine);
+
+  const headers = rows[0].map(cleanValue);
+
+  const dateIdx = findHeaderIndex(headers, ["date", "transaction date", "posted date"]);
+
+  const descIdx = findHeaderIndex(headers, ["description", "details", "merchant", "name", "memo"]);
+
+  const amountIdx = findHeaderIndex(headers, ["amount", "transaction amount"]);
+
+  const debitIdx = findHeaderIndex(headers, ["debit", "withdrawal"]);
+
+  const creditIdx = findHeaderIndex(headers, ["credit", "deposit"]);
+
+  if (dateIdx === -1 || descIdx === -1 || (amountIdx === -1 && debitIdx === -1 && creditIdx === -1)) {
+
+    alert("File format not recognized by importer.");
+
+    return;
+
+  }
+
+  let imported = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+
+    const cols = rows[i].map(cleanValue);
+
+    if (!cols.length) continue;
+
+    const date = cols[dateIdx] || "";
+
+    const descRaw = cols[descIdx] || "";
+
+    const desc = descRaw.toLowerCase();
+
+    let amount = NaN;
+
+    if (amountIdx !== -1) {
+
+      amount = parseMoney(cols[amountIdx]);
+
+    } else {
+
+      const debit = debitIdx !== -1 ? parseMoney(cols[debitIdx]) : NaN;
+
+      const credit = creditIdx !== -1 ? parseMoney(cols[creditIdx]) : NaN;
+
+      if (!isNaN(debit) && debit !== 0) amount = -Math.abs(debit);
+
+      else if (!isNaN(credit) && credit !== 0) amount = Math.abs(credit);
+
+    }
+
+    if (!date || !descRaw || isNaN(amount)) continue;
+
+    let account = "Bank";
+
+    if (desc.includes("apple")) account = "Apple Card";
+
+    else if (desc.includes("amex") || desc.includes("american express")) account = "AmEx";
+
+    let reimb = false;
+
+    let category = "General";
+
+    for (const rule of RULES) {
+
+      if (desc.includes(rule.match)) {
+
+        reimb = rule.reimb;
+
+        category = rule.category;
+
+        break;
+
+      }
+
+    }
+
+    transactions.push({
+
+      date,
+
+      desc: descRaw,
+
+      account,
+
+      amount,
+
+      reimb,
+
+      category
+
+    });
+
+    imported++;
+
+  }
+
+  save();
+
+  render();
+
+  if (imported === 0) {
+
+    alert("No transactions were imported from this file.");
+
+  } else {
+
+    alert(imported + " transactions imported.");
+
+  }
+
+}
+
+function render() {
+
+  const tbody = document.querySelector("#table tbody");
+
+  tbody.innerHTML = "";
+
+  let total = 0;
+
+  let reimb = 0;
+
+  transactions.forEach(t => {
+
+    if (t.amount < 0) {
+
+      total += Math.abs(t.amount);
+
+      if (t.reimb) reimb += Math.abs(t.amount);
+
+    }
+
+    const row = `<tr>
+
+      <td>${t.date}</td>
+
+      <td>${t.desc}</td>
+
+      <td>${t.account}</td>
+
+      <td>${t.category}</td>
+
+      <td>${t.reimb ? "Yes" : ""}</td>
+
+      <td>${t.amount.toFixed(2)}</td>
+
+    </tr>`;
+
+    tbody.innerHTML += row;
+
+  });
+
+  document.getElementById("total").textContent = total.toFixed(2);
+
+  document.getElementById("reimb").textContent = reimb.toFixed(2);
+
+  document.getElementById("net").textContent = (total - reimb).toFixed(2);
+
+}
+
+function exportData() {
+
+  const blob = new Blob([JSON.stringify(transactions, null, 2)], { type: "application/json" });
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+
+  a.href = url;
+
+  a.download = "expenses.json";
+
+  a.click();
+
+}
+
+function clearAll() {
+
+  if (!confirm("Clear all data?")) return;
+
+  transactions = [];
+
+  save();
+
+  render();
+
+}
+
+render();
 
 </script>
-</body>
-</html>
